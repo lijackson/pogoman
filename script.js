@@ -266,10 +266,15 @@ class Game {
         this.restart(level1);
     }
 
+    resize_window() {
+        ctx.canvas.width  = window.innerWidth;
+        ctx.canvas.height = window.innerHeight;
+    }
+
     restart(world = []) {
         this.infinite_generation = world.length == 0;
         this.run_state = "running";
-        this.pogo_dude = new PogoDude(canvas.width/2, canvas.height/2);
+        this.pogo_dude = new PogoDude(360, 240);
         this.generated_chunks = [];
         this.obstacles = [];
         if (!this.infinite_generation) {
@@ -292,9 +297,7 @@ class Game {
             return;
         }
         console.log("generating chunk... %i %i", chunk_x, chunk_y);
-        this.generated_chunks[chunk_x + "," + chunk_y] = new Chunk(chunk_x, chunk_y, num_obstacles);
-        
-        
+        this.generated_chunks[chunk_x + "," + chunk_y] = new Chunk(chunk_x, chunk_y, num_obstacles);        
     }
 
     update(dt) {
@@ -362,6 +365,7 @@ class Game {
     }
 
     draw() {
+        this.resize_window();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);

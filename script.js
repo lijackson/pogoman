@@ -35,7 +35,7 @@ class PogoDude {
     update(input, hit_ground, dt) {
 
         // this adjusts for different FPS to make movement consistent
-        let frame_mod = 15 / dt;
+        let frame_mod = dt / 15;
 
         let momentum = JUMP_STRENGTH;
 
@@ -43,9 +43,9 @@ class PogoDude {
         if (/*touching ground?*/ hit_ground) {
             // rotation should be dampened significantly on landing
             if (this.in_air) {
-                this.drot *= 0.25;
-                this.y -= this.dy / 2;
-                this.x -= this.dx / 2;
+                this.drot *= 0.25 * frame_mod;
+                this.y -= this.dy / 2 * frame_mod;
+                this.x -= this.dx / 2 * frame_mod;
                 momentum = Math.max(JUMP_STRENGTH, Math.sqrt(this.dy ** 2 + this.dx ** 2) * 0.9);
             }
 
@@ -61,9 +61,9 @@ class PogoDude {
         this.y += this.dy * frame_mod;
         this.rotate(this.drot);
         if (this.in_air) {
-            this.dy += 0.15;
+            this.dy += 0.15 * frame_mod;
         } else {
-            this.drot += 0.1 * Math.sin(this.rotation / 180 * Math.PI);
+            this.drot += 0.15 * Math.sin(this.rotation / 180 * Math.PI) * frame_mod;
         }
 
         // jumping
@@ -71,10 +71,10 @@ class PogoDude {
             this.in_air = true;
             this.dx = momentum * Math.sin(this.rotation / 180 * Math.PI);
             this.dy = -momentum *  Math.cos(this.rotation / 180 * Math.PI);
-            this.x += this.dx;
-            this.y += this.dy;
+            this.x += this.dx * frame_mod;
+            this.y += this.dy * frame_mod;
 
-            this.drot += this.dx * 0.75;
+            this.drot += 0.75 * this.dx * frame_mod;
         }
         
         // lean input
@@ -123,7 +123,7 @@ class PogoDude {
         }
         if (!this.in_air) {
             this.move_by( STICK_HEIGHT * (Math.sin(theta3 / 180.0 * Math.PI) - Math.sin(theta1 / 180.0 * Math.PI)),
-                          -STICK_HEIGHT * (Math.cos(theta3 / 180.0 * Math.PI) - Math.cos(theta1 / 180.0 * Math.PI)));
+                         -STICK_HEIGHT * (Math.cos(theta3 / 180.0 * Math.PI) - Math.cos(theta1 / 180.0 * Math.PI)));
         }
     }
 
@@ -516,6 +516,7 @@ class Game {
 
     draw_player() {
         this.pogo_dude.draw();
+        console.log(this.pogo_dude.y);
     }
 
     draw_in_play() {

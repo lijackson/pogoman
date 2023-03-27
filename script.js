@@ -3,11 +3,13 @@ let ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 
-let STICK_HEIGHT = 24;
-let JUMP_STRENGTH = 7;
+const TARGET_MSPT = 15
 
-let OBSTACLES_PER_CHUNK = 10;
-let RENDER_DIST = 2;
+const STICK_HEIGHT = 24;
+const JUMP_STRENGTH = 7;
+
+const OBSTACLES_PER_CHUNK = 10;
+const RENDER_DIST = 2;
 
 AABB = function(obs1, obs2) {
     let x_overlap = obs1.x < obs2.x + obs2.width && obs1.x + obs1.width < obs2.x;
@@ -35,8 +37,7 @@ class PogoDude {
     update(input, hit_ground, dt) {
 
         // this adjusts for different FPS to make movement consistent
-        let frame_mod = dt / 15;
-
+        let frame_mod = dt / TARGET_MSPT;
         let momentum = JUMP_STRENGTH;
 
         // hit ground
@@ -181,14 +182,18 @@ class Level {
     obstacles = [];
     constructor(jsonlvl = null) {
         this.player_start = jsonlvl["player_start"];
+        this.worldborder = this.player_start[1];
         for (let i = 0; i < jsonlvl["obstacles"].length; i++) {
             var dat = jsonlvl["obstacles"][i];
             this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3]));
+            this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
         }
         for (let i = 0; i < jsonlvl["win_blocks"].length; i++) {
             var dat = jsonlvl["win_blocks"][i];
             this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3], "win"));
+            this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
         }
+        this.worldborder += 50;
     }
 }
 
@@ -266,6 +271,22 @@ var level5 = new Level(
     }
 );
 
+var level6 = new Level(
+    {
+        "player_start": [0, 0],
+        "obstacles": [
+            [-50, 100, 300, 30],
+            [400, -200, 100, 500],
+            [-50, 120, 100, 400],
+            [400, 500, 400, 30],
+            [1100, 0, 100, 500],
+        ],
+        "win_blocks": [
+            [1000, 0, 60, 60, "win"]
+        ]
+    }
+);
+
 class Chunk {
     constructor(x, y, num_obstacles) {
         this.x = x;
@@ -329,8 +350,12 @@ class Menu {
 
 class Button {
     constructor(x, y, w, h, txt) {
-        this.sprite = new Image(8, 8);
-        this.sprite.src = "assets/obstacle.png";
+        this.img = new Image(8, 8);
+        this.img.src = "assets/obstacle.png";
+
+        this.hover_img = new Image(8, 8);
+        this.hover_img.src = "assets/btn_hover.png";
+
         this.x = x;
         this.y = y;
         this.width = w;
@@ -340,27 +365,28 @@ class Button {
 
     draw() {
         // Draw background
-        ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
+        ctx.drawImage(this.img, this.x, this.y, this.width, this.height);
 
         // Draw text
-        let fontsize = 32;
+        var fontsize = 32;
         ctx.fillStyle = "white";
         ctx.font = fontsize.toString() + "px Courier New";
-        let txtw = this.txt.size * 2/3;
-        let txth = fontsize;
-        ctx.fillText(this.txt, this.x + this.width/2 - txtw/2, this.y + this.height/2 - txth/2);
+        var txtw = this.txt.length * fontsize * 0.6;
+        var txth = fontsize * 0.6;
+        ctx.fillText(this.txt, this.x + this.width/2 - txtw/2, this.y + this.height/2 + txth/2);
     }
 }
 
 main_menu = new Menu([
-    new Button(100, 100, 50, 50, "1"),
-    new Button(200, 100, 50, 50, "2"),
+    new Button(100, 100, 80, 80, "1"),
+    new Button(200, 100, 80, 80, "2"),
 ]);
 
 class Game {
     constructor() {
         this.run_state = "menu";
         this.pogo_dude = new PogoDude(0, 0);
+        this.worldborder = 1000;
         this.input = {
             left: false,
             right: false,
@@ -432,7 +458,7 @@ class Game {
                 this.obstacles = this.obstacles.concat(this.generated_chunks[chunk_x + "," + chunk_y].obstacles);
             }
         } else {
-            if (this.pogo_dude.y > 1000) {
+            if (this.pogo_dude.y > this.level.worldborder) {
                 this.run_state = "worldborder";
             }
         }
@@ -578,7 +604,7 @@ setInterval(function() {
     game.update(current_time - last_time);
     game.draw();
     last_time = current_time;
-}, 15);
+}, TARGET_MSPT);
 
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {
@@ -621,7 +647,7 @@ document.addEventListener("keydown", function(k) {
             break;
         case 54:
             if (game.run_state != "running") {
-                game.load_level();
+                game.load_level(level6);
             }
             break;
         case 55:

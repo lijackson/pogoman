@@ -34,7 +34,7 @@ class PogoDude {
         this.in_air = false;
     }
 
-    update(input, hit_ground, dt) {
+    update(hit_ground, dt) {
 
         // this adjusts for different FPS to make movement consistent
         let frame_mod = dt / TARGET_MSPT;
@@ -79,13 +79,13 @@ class PogoDude {
         }
         
         // lean input
-        if (input.left) {
+        if (InputHandler.left) {
             this.drot -= 0.1;
             if (this.in_air) {
                 this.drot -= 0.1;
             }
         }
-        if (input.right) {
+        if (InputHandler.right) {
             this.drot += 0.1;
             if (this.in_air) {
                 this.drot += 0.1;
@@ -342,14 +342,16 @@ class Menu {
         this.buttons = btns;
     }
 
-    draw() {
-        for (let i = 0; i < this.buttons.length; i++)
+    show() {
+        for (let i = 0; i < this.buttons.length; i++) {
+            this.buttons[i].exist();
             this.buttons[i].draw();
+        }
     }
 }
 
 class Button {
-    constructor(x, y, w, h, txt) {
+    constructor(x, y, w, h, txt, on_click = function(){}) {
         this.img = new Image(8, 8);
         this.img.src = "assets/obstacle.png";
 
@@ -361,11 +363,29 @@ class Button {
         this.width = w;
         this.height = h;
         this.txt = txt;
+
+        this.on_click = on_click;
+    }
+
+    point_intersects(x, y) {
+        let width_intersects = x < this.x + this.width && x > this.x;
+        let height_intersects = y < this.y + this.height && y > this.y;
+        return width_intersects && height_intersects;
+    }
+
+    exist() {
+        this.hovered = this.point_intersects(InputHandler.mouseX, InputHandler.mouseY)
+        if (this.hovered && InputHandler.click)
+            this.on_click();
     }
 
     draw() {
-        // Draw background
-        ctx.drawImage(this.img, this.x, this.y, this.width, this.height);
+        // Set background
+        var img = this.img;
+        if (this.hovered)
+            img = this.hover_img;
+        
+        ctx.drawImage(img, this.x, this.y, this.width, this.height);
 
         // Draw text
         var fontsize = 32;
@@ -377,9 +397,21 @@ class Button {
     }
 }
 
+var play_lvl_fn = function(lvl) {
+    return function() {
+        game.load_level(lvl);
+        game.restart();
+        console.log("loaded level from func: ", lvl);
+    };
+};
+
 main_menu = new Menu([
-    new Button(100, 100, 80, 80, "1"),
-    new Button(200, 100, 80, 80, "2"),
+    new Button(100, 100, 80, 80, "1", on_click=play_lvl_fn(level1)),
+    new Button(200, 100, 80, 80, "2", on_click=play_lvl_fn(level2)),
+    new Button(300, 100, 80, 80, "3", on_click=play_lvl_fn(level3)),
+    new Button(400, 100, 80, 80, "4", on_click=play_lvl_fn(level4)),
+    new Button(500, 100, 80, 80, "5", on_click=play_lvl_fn(level5)),
+    new Button(600, 100, 80, 80, "6", on_click=play_lvl_fn(level6)),
 ]);
 
 class Game {
@@ -387,11 +419,6 @@ class Game {
         this.run_state = "menu";
         this.pogo_dude = new PogoDude(0, 0);
         this.worldborder = 1000;
-        this.input = {
-            left: false,
-            right: false,
-            jump: false
-        };
     }
 
     resize_window() {
@@ -405,7 +432,6 @@ class Game {
         this.level = lvl;
         this.pogo_dude.reset(   this.level.player_start[0],
                                 this.level.player_start[1]);
-        this.obstacles = this.level.obstacles;
     }
 
     restart() {
@@ -417,9 +443,9 @@ class Game {
         }
         
         // this.generated_chunks = [];
-        // this.obstacles = [];
+        // this.level.obstacles = [];
         // if (!this.infinite_generation) {
-        //     this.obstacles = world;
+        //     this.level.obstacles = world;
         // } else {
         //     this.generate_chunk(0, 0, 0);
         // }
@@ -463,17 +489,17 @@ class Game {
             }
         }
 
-        for (let i = 0; i < this.obstacles.length; i++) {
-            if (this.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
-                if (this.obstacles[i].interaction == "win") {
+        for (let i = 0; i < this.level.obstacles.length; i++) {
+            if (this.level.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
+                if (this.level.obstacles[i].interaction == "win") {
                     this.run_state = "win";
                     break;
                 } else {
                     collision = true;
                 }
             }
-            if (this.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
-                if (this.obstacles[i].interaction == "win") {
+            if (this.level.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
+                if (this.level.obstacles[i].interaction == "win") {
                     this.run_state = "win";
                     break;
                 } else {
@@ -483,16 +509,13 @@ class Game {
             }
         }
 
-        this.pogo_dude.update(this.input, collision, dt);
+        this.pogo_dude.update(collision, dt);
     }
 
     check_reset() {
-        if (this.input.jump) {
-            if (this.infinite_generation)
-                this.restart();
-            else
-                this.restart(this.obstacles);
-        }
+        if (InputHandler.space)
+            this.restart();
+        
     }
 
     update(dt) {
@@ -534,15 +557,14 @@ class Game {
 
     draw_game_objs() {
         let offset = {x: this.pogo_dude.x - canvas.width / 2, y: this.pogo_dude.y - canvas.height / 2};
-        for (let i = 0; i < this.obstacles.length; i++) {
-            this.obstacles[i].draw(offset);
+        for (let i = 0; i < this.level.obstacles.length; i++) {
+            this.level.obstacles[i].draw(offset);
         }
         this.draw_clock();
     }
 
     draw_player() {
         this.pogo_dude.draw();
-        console.log(this.pogo_dude.y);
     }
 
     draw_in_play() {
@@ -557,7 +579,7 @@ class Game {
     }
 
     draw_menu() {
-        main_menu.draw();
+        main_menu.show();
     }
 
     draw() {
@@ -573,20 +595,32 @@ class Game {
             case "bonk":
                 this.draw_in_play();
                 this.draw_bonk_text();
+                this.check_reset();
                 break;
             case "worldborder":
                 this.draw_in_play();
                 this.draw_oob_text();
+                this.check_reset();
                 break;
             case "win":
                 this.draw_in_play();
                 this.draw_win_text();
+                this.check_reset();
                 break;
             case "menu":
                 this.draw_menu();
                 break;
         }
     }
+}
+
+class InputHandler {
+    static left = false;
+    static right = false;
+    static space = false;
+    static mouseX = 0;
+    static mouseY = 0;
+    static click = false;
 }
 
 let game = new Game();
@@ -609,49 +643,16 @@ setInterval(function() {
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {
         case 37:
-            game.input.left = true;
+            InputHandler.left = true;
             break;
         case 39:
-            game.input.right = true;
+            InputHandler.right = true;
             break;
         case 32:
-            game.input.jump = true;
-            if (game.run_state != "running") {
-                game.restart();
-            }
+            InputHandler.space = true;
             break;
-        case 49:
-            if (game.run_state != "running") {
-                game.load_level(level1);
-            }
-            break;
-        case 50:
-            if (game.run_state != "running") {
-                game.load_level(level2);
-            }
-            break;
-        case 51:
-            if (game.run_state != "running") {
-                game.load_level(level3);
-            }
-            break;
-        case 52:
-            if (game.run_state != "running") {
-                game.load_level(level4);
-            }
-            break;
-        case 53:
-            if (game.run_state != "running") {
-                game.load_level(level5);
-            }
-            break;
-        case 54:
-            if (game.run_state != "running") {
-                game.load_level(level6);
-            }
-            break;
-        case 55:
-            game.restart();
+        case 27:
+            game.run_state = "menu";
             break;
         default:
     }
@@ -660,13 +661,31 @@ document.addEventListener("keydown", function(k) {
 document.addEventListener("keyup", function(k) {
     switch(k.keyCode) {
         case 37:
-            game.input.left = false;
+            InputHandler.left = false;
             break;
         case 39:
-            game.input.right = false;
+            InputHandler.right = false;
             break;
         case 32:
-            game.input.jump = false;
+            InputHandler.space = false;
             break;
     }
 });
+
+document.addEventListener("mousemove", function(e) {
+    InputHandler.mouseX = e.clientX;
+    InputHandler.mouseY = e.clientY;
+}); 
+
+document.addEventListener("mousedown", function(e) {
+    InputHandler.mouseX = e.clientX;
+    InputHandler.mouseY = e.clientY;
+    if (e.button == 0)
+        InputHandler.click = true;
+}); 
+document.addEventListener("mouseup", function(e) {
+    InputHandler.mouseX = e.clientX;
+    InputHandler.mouseY = e.clientY;
+    if (e.button == 0)
+        InputHandler.click = false;
+}); 

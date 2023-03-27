@@ -6,7 +6,7 @@ ctx.mozImageSmoothingEnabled = false;
 let STICK_HEIGHT = 24;
 let JUMP_STRENGTH = 7;
 
-let OBSTACLES_PER_CHUNK = 5;
+let OBSTACLES_PER_CHUNK = 10;
 let RENDER_DIST = 2;
 
 AABB = function(obs1, obs2) {
@@ -17,6 +17,12 @@ AABB = function(obs1, obs2) {
 
 class PogoDude {
     constructor(x, y) {
+        this.reset(x, y);
+        this.sprite = new Image(12, 48);
+        this.sprite.src = "assets/placeholder_pogo_man.png";
+    }
+
+    reset(x, y) {
         this.x = x;
         this.y = y;
         this.dx = 0;
@@ -24,8 +30,6 @@ class PogoDude {
         this.drot = 0;
         this.rotation = 0; // in degrees: 0 is up, - is left, + is right, -180 == 180 == down
         this.in_air = false;
-        this.sprite = new Image(12, 48);
-        this.sprite.src = "assets/placeholder_pogo_man.png";
     }
 
     update(input, hit_ground, dt) {
@@ -172,44 +176,95 @@ class Obstacle {
     }
 }
 
-let level1 = [
-    new Obstacle(200, 300, 1000, 30),
-    new Obstacle(500, 250, 50, 50),
-    new Obstacle(800, 230, 50, 70),
-    new Obstacle(1100, 210, 50, 90),
-    new Obstacle(1200, 300, 200, 30, "win")
-];
+class Level {
+    player_start = [0, 0];
+    obstacles = [];
+    constructor(jsonlvl = null) {
+        this.player_start = jsonlvl["player_start"];
+        for (let i = 0; i < jsonlvl["obstacles"].length; i++) {
+            var dat = jsonlvl["obstacles"][i];
+            this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3]));
+        }
+        for (let i = 0; i < jsonlvl["win_blocks"].length; i++) {
+            var dat = jsonlvl["win_blocks"][i];
+            this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3], "win"));
+        }
+    }
+}
 
-let level2 = [
-    new Obstacle(200, 300, 300, 30),
-    new Obstacle(400, 100, 100, 200),
-    new Obstacle(50, 0, 100, 300),
-    new Obstacle(500, 100, 300, 20),
-    new Obstacle(500, 100, 300, 20),
-    new Obstacle(800, 50, 100, 250),
-    new Obstacle(800, 0, 100, 50, "win")
-];
+var level1 = new Level(
+    {
+        "player_start": [360, 240],
+        "obstacles" : [
+            [200, 300, 1000, 30],
+            [500, 250, 50, 50],
+            [800, 230, 50, 70],
+            [1100, 210, 50, 90]
+        ],
+        "win_blocks": [
+            [1200, 300, 200, 30]
+        ]
+    }
+);
 
-let level3 = [
-    new Obstacle(200, 300, 300, 30),
-    new Obstacle(200, -300, 30, 600),
-    new Obstacle(470, -300, 30, 600),
-    new Obstacle(200, -330, 300, 30, "win")
-];
+var level2 = new Level(
+    {
+        "player_start": [360, 240],
+        "obstacles": [
+            [200, 300, 300, 30],
+            [400, 100, 100, 200],
+            [50, 0, 100, 300],
+            [500, 100, 300, 20],
+            [500, 100, 300, 20],
+            [800, 50, 100, 250],
+        ],
+        "win_blocks": [
+            [800, 0, 100, 50, "win"]
+        ]
+    }
+);
 
-let level4 = [
-    new Obstacle(200, 300, 500, 30),
-    new Obstacle(700, -100, 30, 430),
-    new Obstacle(300, -100, 200, 200),
-    new Obstacle(300, -130, 200, 30, "win")
-];
+var level3 = new Level(
+    {
+        "player_start": [360, 240],
+        "obstacles": [
+            [200, 300, 300, 30],
+            [200, -300, 30, 600],
+            [470, -300, 30, 600],
+        ],
+        "win_blocks": [
+            [200, -330, 300, 30]
+        ]
+    }
+);
 
-let level5 = [
-    new Obstacle(200, 300, 1000, 30),
-    new Obstacle(500, -500, 400, 550),
-    new Obstacle(1200, -300, 30, 630),
-    new Obstacle(-30, -30, 60, 60, "win")
-];
+var level4 = new Level(
+    {
+        "player_start": [360, 240],
+        "obstacles": [
+            [200, 300, 500, 30],
+            [700, -100, 30, 430],
+            [300, -100, 200, 200]
+        ],
+        "win_blocks": [
+            [300, -130, 200, 30]
+        ]
+    }
+);
+
+var level5 = new Level(
+    {
+        "player_start": [360, 240],
+        "obstacles": [
+            [200, 300, 1000, 30],
+            [500, -500, 400, 550],
+            [1200, -300, 30, 630]
+        ],
+        "win_blocks": [
+            [-30, -30, 60, 60, "win"]
+        ]
+    }
+);
 
 class Chunk {
     constructor(x, y, num_obstacles) {
@@ -233,8 +288,8 @@ class Chunk {
     }
 
     push_long_obstacle() {
-        let w = Math.floor((1 + Math.random()) * canvas.width / 3);
-        let h = Math.floor((1 + Math.random()) * canvas.height / 20);
+        let w = Math.floor((1 + Math.random()) * 1600 / 3);
+        let h = Math.floor((1 + Math.random()) * 1000 / 20);
         let x = this.x * canvas.width + Math.floor(Math.random() * (canvas.width - w));
         let y = this.y * canvas.height + Math.floor(Math.random() * (canvas.height - h));
         
@@ -242,8 +297,8 @@ class Chunk {
         this.obstacles.push(obs);
     }
     push_tall_obstacle() {
-        let w = Math.floor((1 + Math.random()) * canvas.width / 20);
-        let h = Math.floor((1 + Math.random()) * canvas.height / 4);
+        let w = Math.floor((1 + Math.random()) * 1600 / 20);
+        let h = Math.floor((1 + Math.random()) * 1000 / 4);
         let x = this.x * canvas.width + Math.floor(Math.random() * (canvas.width - w));
         let y = this.y * canvas.height + Math.floor(Math.random() * (canvas.height - h));
         
@@ -251,7 +306,7 @@ class Chunk {
         this.obstacles.push(obs);
     }
     push_box_obstacle() {
-        let w = Math.floor((1 + Math.random()) * canvas.width / 10);
+        let w = Math.floor((1 + Math.random()) * 1600 / 10);
         let x = this.x * canvas.width + Math.floor(Math.random() * (canvas.width - w));
         let y = this.y * canvas.height + Math.floor(Math.random() * (canvas.height - w));
         
@@ -261,9 +316,56 @@ class Chunk {
     
 }
 
+class Menu {
+    constructor(btns) {
+        this.buttons = btns;
+    }
+
+    draw() {
+        for (let i = 0; i < this.buttons.length; i++)
+            this.buttons[i].draw();
+    }
+}
+
+class Button {
+    constructor(x, y, w, h, txt) {
+        this.sprite = new Image(8, 8);
+        this.sprite.src = "assets/obstacle.png";
+        this.x = x;
+        this.y = y;
+        this.width = w;
+        this.height = h;
+        this.txt = txt;
+    }
+
+    draw() {
+        // Draw background
+        ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
+
+        // Draw text
+        let fontsize = 32;
+        ctx.fillStyle = "white";
+        ctx.font = fontsize.toString() + "px Courier New";
+        let txtw = this.txt.size * 2/3;
+        let txth = fontsize;
+        ctx.fillText(this.txt, this.x + this.width/2 - txtw/2, this.y + this.height/2 - txth/2);
+    }
+}
+
+main_menu = new Menu([
+    new Button(100, 100, 50, 50, "1"),
+    new Button(200, 100, 50, 50, "2"),
+]);
+
 class Game {
     constructor() {
-        this.restart(level1);
+        this.run_state = "menu";
+        this.pogo_dude = new PogoDude(0, 0);
+        this.input = {
+            left: false,
+            right: false,
+            jump: false
+        };
     }
 
     resize_window() {
@@ -271,24 +373,30 @@ class Game {
         ctx.canvas.height = window.innerHeight;
     }
 
-    restart(world = []) {
-        this.infinite_generation = world.length == 0;
+    load_level(lvl) {
+        if (!lvl)
+            return;
+        this.level = lvl;
+        this.pogo_dude.reset(   this.level.player_start[0],
+                                this.level.player_start[1]);
+        this.obstacles = this.level.obstacles;
+    }
+
+    restart() {
+        this.infinite_generation = !this.level;
         this.run_state = "running";
-        this.pogo_dude = new PogoDude(360, 240);
-        this.generated_chunks = [];
-        this.obstacles = [];
-        if (!this.infinite_generation) {
-            this.obstacles = world;
-        } else {
-            this.generate_chunk(0, 0, 0);
+        if (this.level) {
+            this.pogo_dude.reset(   this.level.player_start[0],
+                                    this.level.player_start[1]);
         }
-
-        this.input = {
-            left: false,
-            right: false,
-            jump: false
-        };
-
+        
+        // this.generated_chunks = [];
+        // this.obstacles = [];
+        // if (!this.infinite_generation) {
+        //     this.obstacles = world;
+        // } else {
+        //     this.generate_chunk(0, 0, 0);
+        // }
         this.clock = 0;
     }
 
@@ -300,68 +408,129 @@ class Game {
         this.generated_chunks[chunk_x + "," + chunk_y] = new Chunk(chunk_x, chunk_y, num_obstacles);        
     }
 
-    update(dt) {
-        if (this.run_state == "running") {
-            this.clock += dt;
-            let collision = false;
+    step_game(dt) {
+        this.clock += dt;
+        let collision = false;
 
-            let spring_pt = this.pogo_dude.get_base_point();
-            let head_pt = this.pogo_dude.get_head_point();
+        let spring_pt = this.pogo_dude.get_base_point();
+        let head_pt = this.pogo_dude.get_head_point();
 
-            if (this.infinite_generation) {
-                let offset_vecs = [];
-                for (let a = -RENDER_DIST; a <= RENDER_DIST; a++){
-                    for (let b = -RENDER_DIST; b <= RENDER_DIST; b++){
-                        offset_vecs.push([a, b]);
-                    }
-                }
-                this.obstacles = [];
-                for (let i = 0; i < offset_vecs.length; i++) {
-                    let chunk_x = Math.floor(this.pogo_dude.x / canvas.width) + offset_vecs[i][0];
-                    let chunk_y = Math.floor(this.pogo_dude.y / canvas.width) + offset_vecs[i][1];
-                    
-                    this.generate_chunk(chunk_x, chunk_y, OBSTACLES_PER_CHUNK);
-
-                    this.obstacles = this.obstacles.concat(this.generated_chunks[chunk_x + "," + chunk_y].obstacles);
-                }
-            } else {
-                if (this.pogo_dude.y > 1000) {
-                    this.run_state = "worldborder";
+        if (this.infinite_generation) {
+            let offset_vecs = [];
+            for (let a = -RENDER_DIST; a <= RENDER_DIST; a++){
+                for (let b = -RENDER_DIST; b <= RENDER_DIST; b++){
+                    offset_vecs.push([a, b]);
                 }
             }
+            this.obstacles = [];
+            for (let i = 0; i < offset_vecs.length; i++) {
+                let chunk_x = Math.floor(this.pogo_dude.x / canvas.width) + offset_vecs[i][0];
+                let chunk_y = Math.floor(this.pogo_dude.y / canvas.width) + offset_vecs[i][1];
+                
+                this.generate_chunk(chunk_x, chunk_y, OBSTACLES_PER_CHUNK);
 
-            for (let i = 0; i < this.obstacles.length; i++) {
-                if (this.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
-                    if (this.obstacles[i].interaction == "win") {
-                        this.run_state = "win";
-                        break;
-                    } else {
-                        collision = true;
-                    }
-                }
-                if (this.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
-                    if (this.obstacles[i].interaction == "win") {
-                        this.run_state = "win";
-                        break;
-                    } else {
-                        this.run_state = "bonk";
-                    }
-                    console.log(this.obstacles[i])
-                    break;
-                }
+                this.obstacles = this.obstacles.concat(this.generated_chunks[chunk_x + "," + chunk_y].obstacles);
             }
-
-            this.pogo_dude.update(this.input, collision, dt);
         } else {
-            if (this.input.jump) {
-                if (this.infinite_generation) {
-                    this.restart();
+            if (this.pogo_dude.y > 1000) {
+                this.run_state = "worldborder";
+            }
+        }
+
+        for (let i = 0; i < this.obstacles.length; i++) {
+            if (this.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
+                if (this.obstacles[i].interaction == "win") {
+                    this.run_state = "win";
+                    break;
                 } else {
-                    this.restart(this.obstacles);
+                    collision = true;
                 }
             }
-            
+            if (this.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
+                if (this.obstacles[i].interaction == "win") {
+                    this.run_state = "win";
+                    break;
+                } else {
+                    this.run_state = "bonk";
+                }
+                break;
+            }
         }
+
+        this.pogo_dude.update(this.input, collision, dt);
+    }
+
+    check_reset() {
+        if (this.input.jump) {
+            if (this.infinite_generation)
+                this.restart();
+            else
+                this.restart(this.obstacles);
+        }
+    }
+
+    update(dt) {
+        switch (this.run_state) {
+            case "running":
+                this.step_game(dt);
+                break;
+            case "bonk": case "worldborder": case "win":
+                this.check_reset();
+        }
+    }
+
+    draw_bonk_text() {
+        // display bonk failure
+        ctx.fillStyle = "white";
+        ctx.font = "32px Courier New";
+        ctx.fillText("You Bonked your head", canvas.width/2 - 200, canvas.height/2 - 20);
+        ctx.font = "20px Courier New";
+        ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
+    }
+
+    draw_oob_text() {
+        // display fall out of world failure
+        ctx.fillStyle = "white";
+        ctx.font = "32px Courier New";
+        ctx.fillText("You fell out of the world", canvas.width/2 - 240, canvas.height/2 - 20);
+        ctx.font = "20px Courier New";
+        ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
+    }
+
+    draw_win_text() {
+        // display win message
+        ctx.fillStyle = "white";
+        ctx.font = "32px Courier New";
+        ctx.fillText("Yay you made it", canvas.width/2 - 160, canvas.height/2 - 20);
+        ctx.font = "20px Courier New";
+        ctx.fillText("Nice job", canvas.width/2 - 80, canvas.height/2 + 20);
+    }
+
+    draw_game_objs() {
+        let offset = {x: this.pogo_dude.x - canvas.width / 2, y: this.pogo_dude.y - canvas.height / 2};
+        for (let i = 0; i < this.obstacles.length; i++) {
+            this.obstacles[i].draw(offset);
+        }
+        this.draw_clock();
+    }
+
+    draw_player() {
+        this.pogo_dude.draw();
+    }
+
+    draw_in_play() {
+        this.draw_game_objs();
+        this.draw_player();
+    }
+
+    draw_clock() {
+        ctx.fillStyle = "white";
+        ctx.font = "32px Helvetica";
+        ctx.fillText(parseFloat(this.clock/1000).toFixed(2), 30, 50);
+    }
+
+    draw_menu() {
+        main_menu.draw();
     }
 
     draw() {
@@ -370,41 +539,26 @@ class Game {
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        let offset = {x: this.pogo_dude.x - canvas.width / 2, y: this.pogo_dude.y - canvas.height / 2};
-
-        this.pogo_dude.draw();
-        for (let i = 0; i < this.obstacles.length; i++) {
-            this.obstacles[i].draw(offset);
+        switch (this.run_state) {
+            case "running":
+                this.draw_in_play();
+                break;
+            case "bonk":
+                this.draw_in_play();
+                this.draw_bonk_text();
+                break;
+            case "worldborder":
+                this.draw_in_play();
+                this.draw_oob_text();
+                break;
+            case "win":
+                this.draw_in_play();
+                this.draw_win_text();
+                break;
+            case "menu":
+                this.draw_menu();
+                break;
         }
-
-        if (this.run_state == "bonk") {
-            // display bonk failure
-            ctx.fillStyle = "white";
-            ctx.font = "32px Courier New";
-            ctx.fillText("You Bonked your head", canvas.width/2 - 200, canvas.height/2 - 20);
-            ctx.font = "20px Courier New";
-            ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
-        }
-        if (this.run_state == "worldborder") {
-            // display fall out of world failure
-            ctx.fillStyle = "white";
-            ctx.font = "32px Courier New";
-            ctx.fillText("You fell out of the world", canvas.width/2 - 240, canvas.height/2 - 20);
-            ctx.font = "20px Courier New";
-            ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
-        }
-        if (this.run_state == "win") {
-            // display win message
-            ctx.fillStyle = "white";
-            ctx.font = "32px Courier New";
-            ctx.fillText("Yay you made it", canvas.width/2 - 160, canvas.height/2 - 20);
-            ctx.font = "20px Courier New";
-            ctx.fillText("Nice job", canvas.width/2 - 80, canvas.height/2 + 20);
-        }
-
-        ctx.fillStyle = "white";
-        ctx.font = "24px Courier New";
-        ctx.fillText(parseFloat(this.clock/1000).toFixed(2), 30, 40);
     }
 }
 
@@ -435,36 +589,42 @@ document.addEventListener("keydown", function(k) {
             break;
         case 32:
             game.input.jump = true;
+            if (game.run_state != "running") {
+                game.restart();
+            }
             break;
         case 49:
             if (game.run_state != "running") {
-                game.restart(level1);
+                game.load_level(level1);
             }
             break;
         case 50:
             if (game.run_state != "running") {
-                game.restart(level2);
+                game.load_level(level2);
             }
             break;
         case 51:
             if (game.run_state != "running") {
-                game.restart(level3);
+                game.load_level(level3);
             }
             break;
         case 52:
             if (game.run_state != "running") {
-                game.restart(level4);
+                game.load_level(level4);
             }
             break;
         case 53:
             if (game.run_state != "running") {
-                game.restart(level5);
+                game.load_level(level5);
             }
             break;
         case 54:
             if (game.run_state != "running") {
-                game.restart();
+                game.load_level();
             }
+            break;
+        case 55:
+            game.restart();
             break;
         default:
     }

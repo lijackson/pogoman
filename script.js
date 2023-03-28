@@ -4,7 +4,7 @@ ctx.imageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 
 // Milliseconds Per (physics game-)tick
-const MSPT = 10;
+const MSPT = 16.67;
 
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
@@ -38,16 +38,16 @@ class PogoDude {
     update(hit_ground) {
 
         // this adjusts for different FPS to make movement consistent
-        let frame_mod = 1;
+        const frame_mod = MSPT / 15;
         let momentum = JUMP_STRENGTH;
 
         // hit ground
         if (/*touching ground?*/ hit_ground) {
             // rotation should be dampened significantly on landing
             if (this.in_air) {
-                this.drot *= 0.25 * frame_mod;
-                this.y -= this.dy / 2 * frame_mod;
-                this.x -= this.dx / 2 * frame_mod;
+                this.drot *= 0.25;
+                this.y -= this.dy / 2;
+                this.x -= this.dx / 2;
                 momentum = Math.max(JUMP_STRENGTH, Math.sqrt(this.dy ** 2 + this.dx ** 2) * 0.9);
             }
 
@@ -65,7 +65,7 @@ class PogoDude {
         if (this.in_air) {
             this.dy += 0.15 * frame_mod;
         } else {
-            this.drot += 0.15 * Math.sin(this.rotation / 180 * Math.PI) * frame_mod;
+            this.drot += 0.15 * Math.sin(this.rotation / 180 * Math.PI);
         }
 
         // jumping
@@ -81,20 +81,15 @@ class PogoDude {
         
         // lean input
         if (InputHandler.left) {
-            this.drot -= 0.1;
-            if (this.in_air) {
-                this.drot -= 0.1;
-            }
+            this.drot -= 0.2 * frame_mod;
         }
         if (InputHandler.right) {
-            this.drot += 0.1;
-            if (this.in_air) {
-                this.drot += 0.1;
-            }
+            this.drot += 0.2 * frame_mod;
         }
 
         // Control the spin (dont let it get too crazy)
-        this.drot *= 0.99;
+        const drot_decay = Math.pow(0.99, frame_mod);
+        this.drot *= drot_decay;
         if (this.drot > 4) {
             this.drot = 4;
         }
@@ -288,6 +283,26 @@ var level6 = new Level(
     }
 );
 
+var badlevel = new Level(
+    {
+        "player_start": [0, 0],
+        "obstacles": [
+            [-50, 100, 300, 30],
+            [400, -200, 100, 500],
+            [-50, 120, 100, 400],
+            [400, 500, 400, 30],
+            [500, 570, 40, 30],
+            [400, 840, 70, 90],
+            [756, 290, 60, 60],
+            [998, 576, 20, 40],
+            [1100, 0, 40, 70],
+        ],
+        "win_blocks": [
+            [1000, 0, 60, 60, "win"]
+        ]
+    }
+);
+
 class Chunk {
     constructor(x, y, num_obstacles) {
         this.x = x;
@@ -402,7 +417,6 @@ function play_lvl_fn(lvl) {
     return function() {
         game.load_level(lvl);
         game.restart();
-        console.log("loaded level from func: ", lvl);
     };
 };
 
@@ -413,6 +427,7 @@ main_menu = new Menu([
     new Button(400, 100, 80, 80, "4", on_click=play_lvl_fn(level4)),
     new Button(500, 100, 80, 80, "5", on_click=play_lvl_fn(level5)),
     new Button(600, 100, 80, 80, "6", on_click=play_lvl_fn(level6)),
+    new Button(700, 100, 80, 80, "B", on_click=play_lvl_fn(badlevel)),
 ]);
 
 class Game {
@@ -420,9 +435,11 @@ class Game {
         this.run_state = "menu";
         this.pogo_dude = new PogoDude(0, 0);
         this.worldborder = 1000;
+        this.resize_window();
     }
 
     resize_window() {
+        console.log("resizing canvas...");
         ctx.canvas.width  = window.innerWidth;
         ctx.canvas.height = window.innerHeight;
     }
@@ -499,7 +516,6 @@ class Game {
     update() {
         switch (this.run_state) {
             case "running":
-                this.gameloop();
                 break;
             case "bonk": case "worldborder": case "win":
                 this.check_reset();
@@ -561,7 +577,6 @@ class Game {
     }
 
     draw() {
-        this.resize_window();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -609,16 +624,21 @@ function get_time() {
     return t;
 }
 
-function gameloop() {
-
+function gameloop(timestamp) {
+    var numticks = 0;
+    var now = get_time();
     // Run physics to catch up to realtime
     if (game.run_state == "running") {
         var curr_time = get_time();
-        while (game.phystime < curr_time)
+        while (game.phystime < curr_time) {
             game.tick();
+            numticks++;
+        }
     }
 
     game.draw();
+    if (numticks >= 5)
+        console.log(numticks, " ticks calculated in ", get_time() - now , "ms -> THIS IS TOO MANY, rAF is slacking...");
     
     // Loop
     window.requestAnimationFrame(gameloop);
@@ -674,4 +694,7 @@ document.addEventListener("mouseup", function(e) {
     InputHandler.mouseY = e.clientY;
     if (e.button == 0)
         InputHandler.click = false;
+}); 
+document.addEventListener("resize", function() {
+    game.resize_window();
 }); 

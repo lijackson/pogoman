@@ -3,7 +3,8 @@ let ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 
-const MSPT = 15
+// Milliseconds Per (physics game-)tick
+const MSPT = 10;
 
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
@@ -11,7 +12,7 @@ const JUMP_STRENGTH = 7;
 const OBSTACLES_PER_CHUNK = 10;
 const RENDER_DIST = 2;
 
-AABB = function(obs1, obs2) {
+function AABB(obs1, obs2) {
     let x_overlap = obs1.x < obs2.x + obs2.width && obs1.x + obs1.width < obs2.x;
     let y_overlap = obs1.y < obs2.y + obs2.height && obs1.y + obs1.height < obs2.y;
     return x_overlap && y_overlap;
@@ -397,7 +398,7 @@ class Button {
     }
 }
 
-var play_lvl_fn = function(lvl) {
+function play_lvl_fn(lvl) {
     return function() {
         game.load_level(lvl);
         game.restart();
@@ -602,13 +603,13 @@ class InputHandler {
 
 let game = new Game();
 
-get_time = function() {
+function get_time() {
     let d = new Date();
     let t = d.getTime();
     return t;
 }
 
-gameloop = function() {
+function gameloop() {
 
     // Run physics to catch up to realtime
     if (game.run_state == "running") {

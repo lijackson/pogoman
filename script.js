@@ -289,7 +289,10 @@ var badlevel = new Level(
         "obstacles": [
             [-50, 100, 300, 30],
             [400, -200, 100, 500],
-            [-50, 120, 100, 400],
+            [-50, 620, 100, 400],
+            [900, 750, 100, 400],
+            [800, 830, 100, 400],
+            [700, 900, 100, 400],
             [400, 500, 400, 30],
             [500, 570, 40, 30],
             [400, 840, 70, 90],
@@ -695,6 +698,4 @@ document.addEventListener("mouseup", function(e) {
     if (e.button == 0)
         InputHandler.click = false;
 }); 
-document.addEventListener("resize", function() {
-    game.resize_window();
-}); 
+window.addEventListener("resize", game.resize_window); 

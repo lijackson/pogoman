@@ -3,7 +3,7 @@ let ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 
-const TARGET_MSPT = 15
+const MSPT = 15
 
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
@@ -34,10 +34,10 @@ class PogoDude {
         this.in_air = false;
     }
 
-    update(hit_ground, dt) {
+    update(hit_ground) {
 
         // this adjusts for different FPS to make movement consistent
-        let frame_mod = dt / TARGET_MSPT;
+        let frame_mod = 1;
         let momentum = JUMP_STRENGTH;
 
         // hit ground
@@ -441,14 +441,8 @@ class Game {
             this.pogo_dude.reset(   this.level.player_start[0],
                                     this.level.player_start[1]);
         }
-        
-        // this.generated_chunks = [];
-        // this.level.obstacles = [];
-        // if (!this.infinite_generation) {
-        //     this.level.obstacles = world;
-        // } else {
-        //     this.generate_chunk(0, 0, 0);
-        // }
+
+        this.phystime = get_time();
         this.clock = 0;
     }
 
@@ -460,33 +454,17 @@ class Game {
         this.generated_chunks[chunk_x + "," + chunk_y] = new Chunk(chunk_x, chunk_y, num_obstacles);        
     }
 
-    step_game(dt) {
-        this.clock += dt;
+    tick() {
+        this.clock += MSPT;
+        this.phystime += MSPT;
         let collision = false;
 
         let spring_pt = this.pogo_dude.get_base_point();
         let head_pt = this.pogo_dude.get_head_point();
 
-        if (this.infinite_generation) {
-            let offset_vecs = [];
-            for (let a = -RENDER_DIST; a <= RENDER_DIST; a++){
-                for (let b = -RENDER_DIST; b <= RENDER_DIST; b++){
-                    offset_vecs.push([a, b]);
-                }
-            }
-            this.obstacles = [];
-            for (let i = 0; i < offset_vecs.length; i++) {
-                let chunk_x = Math.floor(this.pogo_dude.x / canvas.width) + offset_vecs[i][0];
-                let chunk_y = Math.floor(this.pogo_dude.y / canvas.width) + offset_vecs[i][1];
-                
-                this.generate_chunk(chunk_x, chunk_y, OBSTACLES_PER_CHUNK);
-
-                this.obstacles = this.obstacles.concat(this.generated_chunks[chunk_x + "," + chunk_y].obstacles);
-            }
-        } else {
-            if (this.pogo_dude.y > this.level.worldborder) {
-                this.run_state = "worldborder";
-            }
+        
+        if (this.pogo_dude.y > this.level.worldborder) {
+            this.run_state = "worldborder";
         }
 
         for (let i = 0; i < this.level.obstacles.length; i++) {
@@ -501,7 +479,6 @@ class Game {
             if (this.level.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
                 if (this.level.obstacles[i].interaction == "win") {
                     this.run_state = "win";
-                    break;
                 } else {
                     this.run_state = "bonk";
                 }
@@ -509,7 +486,7 @@ class Game {
             }
         }
 
-        this.pogo_dude.update(collision, dt);
+        this.pogo_dude.update(collision);
     }
 
     check_reset() {
@@ -518,10 +495,10 @@ class Game {
         
     }
 
-    update(dt) {
+    update() {
         switch (this.run_state) {
             case "running":
-                this.step_game(dt);
+                this.gameloop();
                 break;
             case "bonk": case "worldborder": case "win":
                 this.check_reset();
@@ -631,14 +608,22 @@ get_time = function() {
     return t;
 }
 
-let last_time = get_time();
-let current_time = get_time();
-setInterval(function() {
-    current_time = get_time();
-    game.update(current_time - last_time);
+gameloop = function() {
+
+    // Run physics to catch up to realtime
+    if (game.run_state == "running") {
+        var curr_time = get_time();
+        while (game.phystime < curr_time)
+            game.tick();
+    }
+
     game.draw();
-    last_time = current_time;
-}, TARGET_MSPT);
+    
+    // Loop
+    window.requestAnimationFrame(gameloop);
+}
+
+gameloop();
 
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {

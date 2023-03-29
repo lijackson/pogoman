@@ -4,7 +4,9 @@ ctx.imageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 
 // Milliseconds Per (physics game-)tick
-const MSPT = 16.67;
+const MSPT = 3;
+// this adjusts for different FPS to make movement consistent
+const FMOD = MSPT / 15;
 
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
@@ -13,8 +15,12 @@ const OBSTACLES_PER_CHUNK = 10;
 const RENDER_DIST = 2;
 
 function AABB(obs1, obs2) {
-    let x_overlap = obs1.x < obs2.x + obs2.width && obs1.x + obs1.width < obs2.x;
-    let y_overlap = obs1.y < obs2.y + obs2.height && obs1.y + obs1.height < obs2.y;
+    return AABB(obs1.x, obs1.y, obs1.w, obs1.h, obs2.x, obs2.y, obs2.w, obs2.h);
+}
+
+function AABB(x1, y1, w1, h1, x2, y2, w2, h2) {
+    let x_overlap = x1 < x2 + w2 && x1 + w1 < x2;
+    let y_overlap = y1 < y2 + h2 && y1 + h1 < y2;
     return x_overlap && y_overlap;
 }
 
@@ -37,8 +43,6 @@ class PogoDude {
 
     update(hit_ground) {
 
-        // this adjusts for different FPS to make movement consistent
-        const frame_mod = MSPT / 15;
         let momentum = JUMP_STRENGTH;
 
         // hit ground
@@ -59,11 +63,11 @@ class PogoDude {
         }
 
         // acceleration
-        this.x += this.dx * frame_mod;
-        this.y += this.dy * frame_mod;
-        this.rotate(this.drot);
+        this.x += this.dx * FMOD;
+        this.y += this.dy * FMOD;
+        this.rotate(this.drot * FMOD);
         if (this.in_air) {
-            this.dy += 0.15 * frame_mod;
+            this.dy += 0.15 * FMOD;
         } else {
             this.drot += 0.15 * Math.sin(this.rotation / 180 * Math.PI);
         }
@@ -73,22 +77,22 @@ class PogoDude {
             this.in_air = true;
             this.dx = momentum * Math.sin(this.rotation / 180 * Math.PI);
             this.dy = -momentum *  Math.cos(this.rotation / 180 * Math.PI);
-            this.x += this.dx * frame_mod;
-            this.y += this.dy * frame_mod;
+            this.x += this.dx * FMOD;
+            this.y += this.dy * FMOD;
 
-            this.drot += 0.75 * this.dx * frame_mod;
+            this.drot += 0.75 * this.dx;
         }
         
         // lean input
         if (InputHandler.left) {
-            this.drot -= 0.2 * frame_mod;
+            this.drot -= 0.2 * FMOD;
         }
         if (InputHandler.right) {
-            this.drot += 0.2 * frame_mod;
+            this.drot += 0.2 * FMOD;
         }
 
         // Control the spin (dont let it get too crazy)
-        const drot_decay = Math.pow(0.99, frame_mod);
+        const drot_decay = Math.pow(0.99, FMOD);
         this.drot *= drot_decay;
         if (this.drot > 4) {
             this.drot = 4;
@@ -140,7 +144,8 @@ class PogoDude {
     }
 
     move_by(dx, dy) {
-        this.move_to(this.x + dx, this.y + dy);
+        this.x += dx;
+        this.y += dy;
     }
 }
 
@@ -174,9 +179,23 @@ class Obstacle {
 }
 
 class Level {
-    player_start = [0, 0];
+    
+    worldborder = 0;
+    player_start = [0,0]
     obstacles = [];
+
+    constructorempty() {
+        this.player_start = [0, 0];
+        this.obstacles = [];
+        this.worldborder = 50;
+    }
+
     constructor(jsonlvl = null) {
+        if (jsonlvl == null) {
+            this.constructorempty();
+            return;
+        }
+
         this.player_start = jsonlvl["player_start"];
         this.worldborder = this.player_start[1];
         for (let i = 0; i < jsonlvl["obstacles"].length; i++) {
@@ -190,6 +209,19 @@ class Level {
             this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
         }
         this.worldborder += 50;
+    }
+
+    insert_obj(obj) {
+        this.obstacles.push(obj);
+        this.worldborder = Math.max(this.worldborder, obj.y + obj.height)
+    }
+
+    remove_objs_by_area(boundbox) {
+        
+    }
+
+    set_player_start(x, y) {
+        this.player_start = [x, y];
     }
 }
 
@@ -306,56 +338,6 @@ var badlevel = new Level(
     }
 );
 
-class Chunk {
-    constructor(x, y, num_obstacles) {
-        this.x = x;
-        this.y = y;
-        this.obstacles = [];
-        for (let i = 0; i < num_obstacles; i++) {
-            this.push_random_obstacle();
-        }
-    }
-
-    push_random_obstacle() {
-        let p = Math.random();
-            if (p < 0.5) {
-                this.push_long_obstacle();
-            } else if (p < 0.7) {
-                this.push_tall_obstacle();
-            } else {
-                this.push_box_obstacle();
-            }
-    }
-
-    push_long_obstacle() {
-        let w = Math.floor((1 + Math.random()) * 1600 / 3);
-        let h = Math.floor((1 + Math.random()) * 1000 / 20);
-        let x = this.x * canvas.width + Math.floor(Math.random() * (canvas.width - w));
-        let y = this.y * canvas.height + Math.floor(Math.random() * (canvas.height - h));
-        
-        let obs = new Obstacle(x, y, w, h);
-        this.obstacles.push(obs);
-    }
-    push_tall_obstacle() {
-        let w = Math.floor((1 + Math.random()) * 1600 / 20);
-        let h = Math.floor((1 + Math.random()) * 1000 / 4);
-        let x = this.x * canvas.width + Math.floor(Math.random() * (canvas.width - w));
-        let y = this.y * canvas.height + Math.floor(Math.random() * (canvas.height - h));
-        
-        let obs = new Obstacle(x, y, w, h);
-        this.obstacles.push(obs);
-    }
-    push_box_obstacle() {
-        let w = Math.floor((1 + Math.random()) * 1600 / 10);
-        let x = this.x * canvas.width + Math.floor(Math.random() * (canvas.width - w));
-        let y = this.y * canvas.height + Math.floor(Math.random() * (canvas.height - w));
-        
-        let obs = new Obstacle(x, y, w, w);
-        this.obstacles.push(obs);
-    }
-    
-}
-
 class Menu {
     constructor(btns) {
         this.buttons = btns;
@@ -418,114 +400,112 @@ class Button {
 
 function play_lvl_fn(lvl) {
     return function() {
-        game.load_level(lvl);
-        game.restart();
+        Game.load_level(lvl);
+        Game.restart();
     };
 };
 
-main_menu = new Menu([
-    new Button(100, 100, 80, 80, "1", on_click=play_lvl_fn(level1)),
-    new Button(200, 100, 80, 80, "2", on_click=play_lvl_fn(level2)),
-    new Button(300, 100, 80, 80, "3", on_click=play_lvl_fn(level3)),
-    new Button(400, 100, 80, 80, "4", on_click=play_lvl_fn(level4)),
-    new Button(500, 100, 80, 80, "5", on_click=play_lvl_fn(level5)),
-    new Button(600, 100, 80, 80, "6", on_click=play_lvl_fn(level6)),
-    new Button(700, 100, 80, 80, "B", on_click=play_lvl_fn(badlevel)),
-]);
+class Timer {
+    static clocktxt = "0.00";
+    static lastclock = 0;
+
+    static show(force = false) {
+        let t = Game.clock;
+        if (force || Math.abs(t - Timer.lastclock) > 15) {
+            Timer.clocktxt = (t/1000).toFixed(2);
+            Timer.lastclock = t;
+        }
+        
+        ctx.fillStyle = "white";
+        ctx.font = "32px Helvetica";
+        ctx.fillText(Timer.clocktxt, 30, 50);
+    }
+}
 
 class Game {
-    constructor() {
-        this.run_state = "menu";
-        this.pogo_dude = new PogoDude(0, 0);
-        this.worldborder = 1000;
-        this.resize_window();
-    }
+    static run_state = "menu";
+    static pogo_dude = new PogoDude(0, 0);
+    static offset = {x: -canvas.width / 2, y: -canvas.height / 2};
+    static level = new Level();
+    static phystime = 0;
+    static clock = 0;
+    static worldborder = 0;
 
-    resize_window() {
-        console.log("resizing canvas...");
-        ctx.canvas.width  = window.innerWidth;
-        ctx.canvas.height = window.innerHeight;
-    }
-
-    load_level(lvl) {
+    static load_level(lvl) {
         if (!lvl)
             return;
-        this.level = lvl;
-        this.pogo_dude.reset(   this.level.player_start[0],
-                                this.level.player_start[1]);
+        Game.level = lvl;
+        Game.pogo_dude.reset(Game.level.player_start[0],
+                             Game.level.player_start[1]);
     }
 
-    restart() {
-        this.infinite_generation = !this.level;
-        this.run_state = "running";
-        if (this.level) {
-            this.pogo_dude.reset(   this.level.player_start[0],
-                                    this.level.player_start[1]);
+    static restart() {
+        Game.run_state = "running";
+        if (Game.level) {
+            Game.pogo_dude.reset(Game.level.player_start[0],
+                                 Game.level.player_start[1]);
         }
-
-        this.phystime = get_time();
-        this.clock = 0;
+        
+        Game.phystime = get_time();
+        Game.clock = 0;
     }
 
-    generate_chunk(chunk_x, chunk_y, num_obstacles) {
-        if (chunk_x + "," + chunk_y in this.generated_chunks) {
-            return;
-        }
-        console.log("generating chunk... %i %i", chunk_x, chunk_y);
-        this.generated_chunks[chunk_x + "," + chunk_y] = new Chunk(chunk_x, chunk_y, num_obstacles);        
+    static open_lvl_editor() {
+        Game.offset = {x: 0, y: 0};
+        Game.run_state = "lvledit";
+        Game.level = new Level();
     }
 
-    tick() {
-        this.clock += MSPT;
-        this.phystime += MSPT;
+    static gametick() {
+        Game.clock += MSPT;
+        Game.phystime += MSPT;
         let collision = false;
 
-        let spring_pt = this.pogo_dude.get_base_point();
-        let head_pt = this.pogo_dude.get_head_point();
-
+        let spring_pt = Game.pogo_dude.get_base_point();
+        let head_pt = Game.pogo_dude.get_head_point();
         
-        if (this.pogo_dude.y > this.level.worldborder) {
-            this.run_state = "worldborder";
+        Game.offset = {x: Game.pogo_dude.x - canvas.width / 2, y: Game.pogo_dude.y - canvas.height / 2};
+        
+        if (Game.pogo_dude.y > Game.level.worldborder) {
+            Game.run_state = "worldborder";
         }
 
-        for (let i = 0; i < this.level.obstacles.length; i++) {
-            if (this.level.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
-                if (this.level.obstacles[i].interaction == "win") {
-                    this.run_state = "win";
+        for (let i = 0; i < Game.level.obstacles.length; i++) {
+            if (Game.level.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
+                if (Game.level.obstacles[i].interaction == "win") {
+                    Game.run_state = "win";
                     break;
                 } else {
                     collision = true;
                 }
             }
-            if (this.level.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
-                if (this.level.obstacles[i].interaction == "win") {
-                    this.run_state = "win";
+            if (Game.level.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
+                if (Game.level.obstacles[i].interaction == "win") {
+                    Game.run_state = "win";
                 } else {
-                    this.run_state = "bonk";
+                    Game.run_state = "bonk";
                 }
                 break;
             }
         }
 
-        this.pogo_dude.update(collision);
+        Game.pogo_dude.update(collision);
     }
 
-    check_reset() {
-        if (InputHandler.space)
-            this.restart();
-        
-    }
-
-    update() {
-        switch (this.run_state) {
-            case "running":
-                break;
-            case "bonk": case "worldborder": case "win":
-                this.check_reset();
+    static editortick() {
+        if (InputHandler.click) {
+            var newobj = new Obstacle(InputHandler.mouseX - Game.offset.x, InputHandler.mouseY - Game.offset.y, 100, 100);
+            Game.level.insert_obj(newobj);
         }
     }
 
-    draw_bonk_text() {
+    static check_reset() {
+        if (InputHandler.space)
+            Game.restart();
+        
+    }
+
+    static draw_bonk_text() {
         // display bonk failure
         ctx.fillStyle = "white";
         ctx.font = "32px Courier New";
@@ -534,7 +514,7 @@ class Game {
         ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
     }
 
-    draw_oob_text() {
+    static draw_oob_text() {
         // display fall out of world failure
         ctx.fillStyle = "white";
         ctx.font = "32px Courier New";
@@ -543,7 +523,7 @@ class Game {
         ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
     }
 
-    draw_win_text() {
+    static draw_win_text() {
         // display win message
         ctx.fillStyle = "white";
         ctx.font = "32px Courier New";
@@ -552,59 +532,59 @@ class Game {
         ctx.fillText("Nice job", canvas.width/2 - 80, canvas.height/2 + 20);
     }
 
-    draw_game_objs() {
-        let offset = {x: this.pogo_dude.x - canvas.width / 2, y: this.pogo_dude.y - canvas.height / 2};
-        for (let i = 0; i < this.level.obstacles.length; i++) {
-            this.level.obstacles[i].draw(offset);
+    static draw_game_objs() {
+        for (let i = 0; i < Game.level.obstacles.length; i++) {
+            Game.level.obstacles[i].draw(Game.offset);
         }
-        this.draw_clock();
+        Game.pogo_dude.draw();
     }
 
-    draw_player() {
-        this.pogo_dude.draw();
+    static draw_in_play() {
+        Game.draw_game_objs();
+        Game.draw_clock();
     }
 
-    draw_in_play() {
-        this.draw_game_objs();
-        this.draw_player();
+    static draw_clock(force=false) {
+        Timer.show(force);
     }
 
-    draw_clock() {
-        ctx.fillStyle = "white";
-        ctx.font = "32px Helvetica";
-        ctx.fillText(parseFloat(this.clock/1000).toFixed(2), 30, 50);
-    }
-
-    draw_menu() {
+    static draw_menu() {
         main_menu.show();
     }
 
-    draw() {
+    static draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        switch (this.run_state) {
+        switch (Game.run_state) {
             case "running":
-                this.draw_in_play();
+                Game.draw_in_play();
+                Game.draw_clock();
                 break;
             case "bonk":
-                this.draw_in_play();
-                this.draw_bonk_text();
-                this.check_reset();
+                Game.draw_in_play();
+                Game.draw_clock(true);
+                Game.draw_bonk_text();
+                Game.check_reset();
                 break;
             case "worldborder":
-                this.draw_in_play();
-                this.draw_oob_text();
-                this.check_reset();
+                Game.draw_in_play();
+                Game.draw_clock(true);
+                Game.draw_oob_text();
+                Game.check_reset();
                 break;
             case "win":
-                this.draw_in_play();
-                this.draw_win_text();
-                this.check_reset();
+                Game.draw_in_play();
+                Game.draw_clock(true);
+                Game.draw_win_text();
+                Game.check_reset();
                 break;
             case "menu":
-                this.draw_menu();
+                Game.draw_menu();
+                break;
+            case "lvledit":
+                Game.draw_in_play();
                 break;
         }
     }
@@ -619,7 +599,23 @@ class InputHandler {
     static click = false;
 }
 
-let game = new Game();
+var game = new Game();
+function open_lvl_editor() {
+    Game.open_lvl_editor();
+}
+var main_menu = new Menu([
+    // Levels
+    new Button(100, 100, 80, 80, "1", on_click=play_lvl_fn(level1)),
+    new Button(200, 100, 80, 80, "2", on_click=play_lvl_fn(level2)),
+    new Button(300, 100, 80, 80, "3", on_click=play_lvl_fn(level3)),
+    new Button(400, 100, 80, 80, "4", on_click=play_lvl_fn(level4)),
+    new Button(500, 100, 80, 80, "5", on_click=play_lvl_fn(level5)),
+    new Button(600, 100, 80, 80, "6", on_click=play_lvl_fn(level6)),
+    new Button(700, 100, 80, 80, "B", on_click=play_lvl_fn(badlevel)),
+
+    // Level editor
+    new Button(100, 800, 1000, 80, "Level Editor", on_click=open_lvl_editor)
+]);
 
 function get_time() {
     let d = new Date();
@@ -631,23 +627,24 @@ function gameloop(timestamp) {
     var numticks = 0;
     var now = get_time();
     // Run physics to catch up to realtime
-    if (game.run_state == "running") {
+    if (Game.run_state == "running") {
         var curr_time = get_time();
-        while (game.phystime < curr_time) {
-            game.tick();
+        while (Game.phystime < curr_time) {
+            Game.gametick();
             numticks++;
         }
+    } else if (Game.run_state == "lvledit") {
+        Game.editortick();
     }
 
-    game.draw();
-    if (numticks >= 5)
+    Game.draw();
+    if (numticks >= 15)
         console.log(numticks, " ticks calculated in ", get_time() - now , "ms -> THIS IS TOO MANY, rAF is slacking...");
     
     // Loop
     window.requestAnimationFrame(gameloop);
 }
 
-gameloop();
 
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {
@@ -661,10 +658,10 @@ document.addEventListener("keydown", function(k) {
             InputHandler.space = true;
             break;
         case 27:
-            game.run_state = "menu";
+            Game.run_state = "menu";
             break;
         default:
-    }
+        }
 });
 
 document.addEventListener("keyup", function(k) {
@@ -698,4 +695,12 @@ document.addEventListener("mouseup", function(e) {
     if (e.button == 0)
         InputHandler.click = false;
 }); 
-window.addEventListener("resize", game.resize_window); 
+
+function resize_window() {
+    ctx.canvas.width  = window.innerWidth;
+    ctx.canvas.height = window.innerHeight;
+}
+resize_window();
+window.addEventListener("resize", resize_window); 
+
+gameloop();

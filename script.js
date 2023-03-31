@@ -5,6 +5,8 @@ ctx.mozImageSmoothingEnabled = false;
 
 // Milliseconds Per (physics game-)tick
 const MSPT = 3;
+// This is about 60fps. Faster monitors or browsers might be different but I'm not checking for that
+const EXPECTED_FRAMERATE = 17;
 // this adjusts for different FPS to make movement consistent
 const FMOD = MSPT / 15;
 
@@ -150,9 +152,12 @@ class PogoDude {
 }
 
 class Obstacle {
+    static next_id = 0;
+
     constructor(x, y, width, height, type = "block") {
         this.x = x;
         this.y = y;
+        this.id = Obstacle.next_id++;
         this.width = width;
         this.height = height;
         this.rotation = 0;
@@ -171,6 +176,16 @@ class Obstacle {
         let width_intersects = x < this.x + this.width && x > this.x;
         let height_intersects = y < this.y + this.height && y > this.y;
         return width_intersects && height_intersects;
+    }
+
+    change_dims(new_width, new_height) {
+        this.width = new_width;
+        this.height = new_height;
+    }
+
+    move_to(new_x, new_y) {
+        this.x = new_x;
+        this.y = new_y;
     }
 
     draw(offset) {
@@ -339,14 +354,24 @@ var badlevel = new Level(
 );
 
 class Menu {
-    constructor(btns) {
-        this.buttons = btns;
+    static buttons = [];
+
+    static animframe() {
+        Menu.draw();
+        
+        StateHandler.handle();
     }
 
-    show() {
-        for (let i = 0; i < this.buttons.length; i++) {
-            this.buttons[i].exist();
-            this.buttons[i].draw();
+    static draw() {
+        // Draw Background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#55BBFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Buttons
+        for (let i = 0; i < Menu.buttons.length; i++) {
+            Menu.buttons[i].exist();
+            Menu.buttons[i].draw();
         }
     }
 }
@@ -400,6 +425,7 @@ class Button {
 
 function play_lvl_fn(lvl) {
     return function() {
+        StateHandler.state = "game";
         Game.load_level(lvl);
         Game.restart();
     };
@@ -409,7 +435,7 @@ class Timer {
     static clocktxt = "0.00";
     static lastclock = 0;
 
-    static show(force = false) {
+    static draw(force = false) {
         let t = Game.clock;
         if (force || Math.abs(t - Timer.lastclock) > 15) {
             Timer.clocktxt = (t/1000).toFixed(2);
@@ -422,8 +448,123 @@ class Timer {
     }
 }
 
+class StateHandler {
+    static state = "menu";
+    static handle() {
+
+        // The ESC key should always return to main menu
+        // It is the only input that should override the described input handling of the animation frames
+        if (InputHandler.esc)
+            StateHandler.state = "menu";
+
+        var next_frame = Menu.animframe;
+        switch(StateHandler.state) {
+            case "menu":
+                next_frame = Menu.animframe;
+                break;
+            case "game":
+                next_frame = Game.animframe;
+                break;
+            case "bonk": case "worldborder": case "win":
+                next_frame = PauseScreen.animframe;
+                break;
+            case "lvledit":
+                next_frame = LevelEditor.animframe;
+            default:
+                console.log("what is this state??");
+                break;
+        }
+
+        window.requestAnimationFrame(next_frame);
+    }
+}
+
+class LevelEditor {
+
+    static level = new Level();
+    static offset = {x: 0, y: 0};
+    static registered_click = false;
+    static obstacle_creator = null;
+
+    static reset() {
+        LevelEditor.offset = {x: 0, y: 0};
+        LevelEditor.level = new Level();
+    }
+
+    static animframe() {
+        if (InputHandler.click) {
+            if (!LevelEditor.registered_click) {
+                LevelEditor.obstacle_creator = new Obstacle(InputHandler.mouseX + LevelEditor.offset.x, InputHandler.mouseY + LevelEditor.offset.y, 0, 0);
+                LevelEditor.registered_click = true;
+            }
+            let new_width = InputHandler.mouseX - LevelEditor.obstacle_creator.x;
+            let new_height = InputHandler.mouseY - LevelEditor.obstacle_creator.y;
+            LevelEditor.obstacle_creator.change_dims(new_width, new_height);
+        }
+        
+        if (LevelEditor.registered_click && !InputHandler.click) {
+            // Dont add obstacles that have 0 area
+            if (LevelEditor.obstacle_creator.x != 0 && LevelEditor.obstacle_creator.y != 0)
+                LevelEditor.level.insert_obj(LevelEditor.obstacle_creator);
+            LevelEditor.obstacle_creator = null;
+            LevelEditor.registered_click = false;
+        }
+        LevelEditor.draw();
+
+        StateHandler.handle();
+    }
+
+    static draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#55BBFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for (let i = 0; i < LevelEditor.level.obstacles.length; i++) {
+            LevelEditor.level.obstacles[i].draw(LevelEditor.offset);
+        }
+
+        if (LevelEditor.obstacle_creator)
+            LevelEditor.obstacle_creator.draw(LevelEditor.offset);
+
+        if (LevelEditor.pogo_dude)
+            LevelEditor.pogo_dude.draw();
+    }
+}
+
+class PauseScreen {
+
+    static pause_text_of = {
+        "bonk" : ["You Bonked your head", "Press Space to try again"],
+        "worldborder" : ["You fell out of the world", "Press Space to try again"],
+        "win" : ["Yay you made it", "Nice job"],
+        "pause" : ["Game paused", "Press space to resume"]
+    }
+
+    static animframe() {
+        Game.draw_game_state();
+        Game.draw_clock(true);
+
+        var pausetxt = PauseScreen.pause_text_of[StateHandler.state];
+        PauseScreen.draw(pausetxt[0], pausetxt[1]);
+
+        if (InputHandler.space) {
+            StateHandler.state = "game";
+            Game.restart();
+        }
+
+        StateHandler.handle();
+    }
+
+    static draw(main_text, sub_text) {
+        ctx.fillStyle = "white";
+        ctx.font = "32px Courier New";
+        ctx.fillText(main_text, canvas.width/2 - main_text.length * 10, canvas.height/2 - 20);
+        ctx.font = "20px Courier New";
+        ctx.fillText(sub_text, canvas.width/2 - sub_text.length * 6.25, canvas.height/2 + 20);
+    }
+}
+
 class Game {
-    static run_state = "menu";
     static pogo_dude = new PogoDude(0, 0);
     static offset = {x: -canvas.width / 2, y: -canvas.height / 2};
     static level = new Level();
@@ -440,7 +581,6 @@ class Game {
     }
 
     static restart() {
-        Game.run_state = "running";
         if (Game.level) {
             Game.pogo_dude.reset(Game.level.player_start[0],
                                  Game.level.player_start[1]);
@@ -450,13 +590,27 @@ class Game {
         Game.clock = 0;
     }
 
-    static open_lvl_editor() {
-        Game.offset = {x: 0, y: 0};
-        Game.run_state = "lvledit";
-        Game.level = new Level();
+    static animframe() {
+        var numticks = 0;
+        var now = get_time();
+        // Run physics to catch up to realtime
+        while (Game.phystime < now) {
+            Game.phystick();
+            numticks++;
+        }
+        // Check if we were lagging by over 3x expected frames
+        if (numticks >= EXPECTED_FRAMERATE * 3 / MSPT)
+            console.log(numticks, " ticks (calculated in ", get_time() - now , "ms)\nThe browser likely implements the clock display very poorly (Firefox is known to have this issue).\nThis will cause jittery in animation.");
+    
+        Game.draw();
+
+        console.log("in game loop")
+        
+        // Loop
+        StateHandler.handle();
     }
 
-    static gametick() {
+    static phystick() {
         Game.clock += MSPT;
         Game.phystime += MSPT;
         let collision = false;
@@ -467,13 +621,13 @@ class Game {
         Game.offset = {x: Game.pogo_dude.x - canvas.width / 2, y: Game.pogo_dude.y - canvas.height / 2};
         
         if (Game.pogo_dude.y > Game.level.worldborder) {
-            Game.run_state = "worldborder";
+            StateHandler.state = "worldborder";
         }
 
         for (let i = 0; i < Game.level.obstacles.length; i++) {
             if (Game.level.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
                 if (Game.level.obstacles[i].interaction == "win") {
-                    Game.run_state = "win";
+                    StateHandler.state = "win";
                     break;
                 } else {
                     collision = true;
@@ -481,9 +635,9 @@ class Game {
             }
             if (Game.level.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
                 if (Game.level.obstacles[i].interaction == "win") {
-                    Game.run_state = "win";
+                    StateHandler.state = "win";
                 } else {
-                    Game.run_state = "bonk";
+                    StateHandler.state = "bonk";
                 }
                 break;
             }
@@ -492,101 +646,29 @@ class Game {
         Game.pogo_dude.update(collision);
     }
 
-    static editortick() {
-        if (InputHandler.click) {
-            var newobj = new Obstacle(InputHandler.mouseX - Game.offset.x, InputHandler.mouseY - Game.offset.y, 100, 100);
-            Game.level.insert_obj(newobj);
-        }
-    }
+    static draw_game_state() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#55BBFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    static check_reset() {
-        if (InputHandler.space)
-            Game.restart();
-        
-    }
-
-    static draw_bonk_text() {
-        // display bonk failure
-        ctx.fillStyle = "white";
-        ctx.font = "32px Courier New";
-        ctx.fillText("You Bonked your head", canvas.width/2 - 200, canvas.height/2 - 20);
-        ctx.font = "20px Courier New";
-        ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
-    }
-
-    static draw_oob_text() {
-        // display fall out of world failure
-        ctx.fillStyle = "white";
-        ctx.font = "32px Courier New";
-        ctx.fillText("You fell out of the world", canvas.width/2 - 240, canvas.height/2 - 20);
-        ctx.font = "20px Courier New";
-        ctx.fillText("Press Space to try again", canvas.width/2 - 150, canvas.height/2 + 20);
-    }
-
-    static draw_win_text() {
-        // display win message
-        ctx.fillStyle = "white";
-        ctx.font = "32px Courier New";
-        ctx.fillText("Yay you made it", canvas.width/2 - 160, canvas.height/2 - 20);
-        ctx.font = "20px Courier New";
-        ctx.fillText("Nice job", canvas.width/2 - 80, canvas.height/2 + 20);
-    }
-
-    static draw_game_objs() {
         for (let i = 0; i < Game.level.obstacles.length; i++) {
             Game.level.obstacles[i].draw(Game.offset);
         }
         Game.pogo_dude.draw();
     }
-
+    
+    static draw_clock(force=false) {
+        Timer.draw(force);
+    }
+    
     static draw_in_play() {
-        Game.draw_game_objs();
+        Game.draw_game_state();
         Game.draw_clock();
     }
 
-    static draw_clock(force=false) {
-        Timer.show(force);
-    }
-
-    static draw_menu() {
-        main_menu.show();
-    }
-
     static draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#55BBFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        switch (Game.run_state) {
-            case "running":
-                Game.draw_in_play();
-                Game.draw_clock();
-                break;
-            case "bonk":
-                Game.draw_in_play();
-                Game.draw_clock(true);
-                Game.draw_bonk_text();
-                Game.check_reset();
-                break;
-            case "worldborder":
-                Game.draw_in_play();
-                Game.draw_clock(true);
-                Game.draw_oob_text();
-                Game.check_reset();
-                break;
-            case "win":
-                Game.draw_in_play();
-                Game.draw_clock(true);
-                Game.draw_win_text();
-                Game.check_reset();
-                break;
-            case "menu":
-                Game.draw_menu();
-                break;
-            case "lvledit":
-                Game.draw_in_play();
-                break;
-        }
+        Game.draw_in_play();
     }
 }
 
@@ -594,16 +676,20 @@ class InputHandler {
     static left = false;
     static right = false;
     static space = false;
+    static esc = false;
     static mouseX = 0;
     static mouseY = 0;
     static click = false;
 }
 
 var game = new Game();
+
 function open_lvl_editor() {
-    Game.open_lvl_editor();
+    LevelEditor.reset();
+    StateHandler.state = "lvledit";
 }
-var main_menu = new Menu([
+
+Menu.buttons = [
     // Levels
     new Button(100, 100, 80, 80, "1", on_click=play_lvl_fn(level1)),
     new Button(200, 100, 80, 80, "2", on_click=play_lvl_fn(level2)),
@@ -615,36 +701,13 @@ var main_menu = new Menu([
 
     // Level editor
     new Button(100, 800, 1000, 80, "Level Editor", on_click=open_lvl_editor)
-]);
+];
 
 function get_time() {
     let d = new Date();
     let t = d.getTime();
     return t;
 }
-
-function gameloop(timestamp) {
-    var numticks = 0;
-    var now = get_time();
-    // Run physics to catch up to realtime
-    if (Game.run_state == "running") {
-        var curr_time = get_time();
-        while (Game.phystime < curr_time) {
-            Game.gametick();
-            numticks++;
-        }
-    } else if (Game.run_state == "lvledit") {
-        Game.editortick();
-    }
-
-    Game.draw();
-    if (numticks >= 15)
-        console.log(numticks, " ticks calculated in ", get_time() - now , "ms -> THIS IS TOO MANY, rAF is slacking...");
-    
-    // Loop
-    window.requestAnimationFrame(gameloop);
-}
-
 
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {
@@ -658,7 +721,7 @@ document.addEventListener("keydown", function(k) {
             InputHandler.space = true;
             break;
         case 27:
-            Game.run_state = "menu";
+            InputHandler.esc = true;
             break;
         default:
         }
@@ -674,6 +737,9 @@ document.addEventListener("keyup", function(k) {
             break;
         case 32:
             InputHandler.space = false;
+            break;
+        case 27:
+            InputHandler.esc = false;
             break;
     }
 });
@@ -701,6 +767,6 @@ function resize_window() {
     ctx.canvas.height = window.innerHeight;
 }
 resize_window();
-window.addEventListener("resize", resize_window); 
+window.addEventListener("resize", resize_window);
 
-gameloop();
+requestAnimationFrame(StateHandler.handle);

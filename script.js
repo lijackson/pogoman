@@ -104,9 +104,9 @@ class PogoDude {
         }
     }
 
-    draw() {
+    draw(offset) {
         ctx.save();
-        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.translate(this.x - offset.x, this.y - offset.y);
         ctx.rotate(this.rotation / 180 * Math.PI);
         ctx.drawImage(this.sprite, this.sprite.width / -2, this.sprite.height / -2, this.sprite.width, this.sprite.height);
         ctx.restore();
@@ -195,33 +195,32 @@ class Obstacle {
 
 class Level {
     
-    worldborder = 0;
-    player_start = [0,0]
+    worldborder = 50;
+    player_start = [0, 0]
     obstacles = [];
 
-    constructorempty() {
-        this.player_start = [0, 0];
-        this.obstacles = [];
-        this.worldborder = 50;
-    }
+    constructor(jsonlvl = {}) {
+        this.worldborder = 0;
 
-    constructor(jsonlvl = null) {
-        if (jsonlvl == null) {
-            this.constructorempty();
-            return;
+        if ("player_start" in jsonlvl){
+            this.player_start = jsonlvl["player_start"];
+            this.worldborder = this.player_start[1];
         }
 
-        this.player_start = jsonlvl["player_start"];
-        this.worldborder = this.player_start[1];
-        for (let i = 0; i < jsonlvl["obstacles"].length; i++) {
-            var dat = jsonlvl["obstacles"][i];
-            this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3]));
-            this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
+        if ("obstacles" in jsonlvl) {
+            for (let i = 0; i < jsonlvl["obstacles"].length; i++) {
+                var dat = jsonlvl["obstacles"][i];
+                this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3]));
+                this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
+            }
         }
-        for (let i = 0; i < jsonlvl["win_blocks"].length; i++) {
-            var dat = jsonlvl["win_blocks"][i];
-            this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3], "win"));
-            this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
+
+        if ("win_blocks" in jsonlvl) {
+            for (let i = 0; i < jsonlvl["win_blocks"].length; i++) {
+                var dat = jsonlvl["win_blocks"][i];
+                this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3], "win"));
+                this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
+            }
         }
         this.worldborder += 50;
     }
@@ -353,11 +352,35 @@ var badlevel = new Level(
     }
 );
 
+function play_lvl_fn(lvl) {
+    return function() {
+        StateHandler.state = "game";
+        Game.load_level(lvl);
+        Game.restart();
+    };
+};
+
 class Menu {
+    buttons = [];
+
+    constructor(btns) {
+        this.buttons = btns;
+    }
+
+    draw() {
+        // Draw Buttons
+        for (let i = 0; i < this.buttons.length; i++) {
+            this.buttons[i].exist();
+            this.buttons[i].draw();
+        }
+    }
+}
+
+class MainMenu {
     static buttons = [];
 
     static animframe() {
-        Menu.draw();
+        MainMenu.draw();
         
         StateHandler.handle();
     }
@@ -369,9 +392,9 @@ class Menu {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Draw Buttons
-        for (let i = 0; i < Menu.buttons.length; i++) {
-            Menu.buttons[i].exist();
-            Menu.buttons[i].draw();
+        for (let i = 0; i < MainMenu.buttons.length; i++) {
+            MainMenu.buttons[i].exist();
+            MainMenu.buttons[i].draw();
         }
     }
 }
@@ -423,14 +446,6 @@ class Button {
     }
 }
 
-function play_lvl_fn(lvl) {
-    return function() {
-        StateHandler.state = "game";
-        Game.load_level(lvl);
-        Game.restart();
-    };
-};
-
 class Timer {
     static clocktxt = "0.00";
     static lastclock = 0;
@@ -449,31 +464,25 @@ class Timer {
 }
 
 class StateHandler {
-    static state = "menu";
+    static state = "mainmenu";
     static handle() {
 
         // The ESC key should always return to main menu
         // It is the only input that should override the described input handling of the animation frames
         if (InputHandler.esc)
-            StateHandler.state = "menu";
+            StateHandler.state = "mainmenu";
 
-        var next_frame = Menu.animframe;
-        switch(StateHandler.state) {
-            case "menu":
-                next_frame = Menu.animframe;
-                break;
-            case "game":
-                next_frame = Game.animframe;
-                break;
-            case "bonk": case "worldborder": case "win":
-                next_frame = PauseScreen.animframe;
-                break;
-            case "lvledit":
-                next_frame = LevelEditor.animframe;
-            default:
-                console.log("what is this state??");
-                break;
-        }
+        const next_frame_from_state = {
+            "mainmenu": MainMenu.animframe,
+            "game": Game.animframe,
+            "bonk": PauseScreen.animframe,
+            "worldborder": PauseScreen.animframe,
+            "win": PauseScreen.animframe,
+            "lvledit": LevelEditor.animframe,
+        };
+        if (StateHandler.state != "lvledit")
+            LevelEditor.is_open = false;
+        var next_frame = next_frame_from_state[StateHandler.state];
 
         window.requestAnimationFrame(next_frame);
     }
@@ -481,30 +490,61 @@ class StateHandler {
 
 class LevelEditor {
 
-    static level = new Level();
-    static offset = {x: 0, y: 0};
+    static level = new Level({"player_start": [0, 0]});
+    static pogo_dude = new PogoDude(0, 0);
+    static offset = {x: -canvas.width/2, y: -canvas.height/2};
     static registered_click = false;
     static obstacle_creator = null;
+    static menu = new Menu([
+        new Button(10, 10, 200, 50, "obstacle", function(){
+            LevelEditor.mode = "obstacle";
+        }),
+        new Button(10, 70, 200, 50, "select", function(){
+            LevelEditor.mode = "select";
+        }),
+        new Button(10, 130, 200, 50, "drag", function(){
+            LevelEditor.mode = "drag";
+        }),
+        new Button(10, 130, 200, 50, "clear", LevelEditor.reset),
+        new Button(10, 190, 200, 50, "play", function() {
+            StateHandler.state = "game";
+            Game.load_level(LevelEditor.level);
+            Game.restart();
+        }),
+    ]);
+
+    static on_open() {
+        LevelEditor.offset = {x: -canvas.width/2, y: -canvas.height/2};
+        LevelEditor.registered_click = false;
+        LevelEditor.obstacle_creator = null;
+        LevelEditor.is_open = true;
+    }
 
     static reset() {
-        LevelEditor.offset = {x: 0, y: 0};
-        LevelEditor.level = new Level();
+        LevelEditor.level = new Level({"player_start": [0, 0]});
+        LevelEditor.pogo_dude.move_to(0, 0);
     }
 
     static animframe() {
+        if (!LevelEditor.is_open)
+            LevelEditor.on_open();
+        
+
+        var rel_x = InputHandler.mouseX + LevelEditor.offset.x;
+        var rel_y = InputHandler.mouseY + LevelEditor.offset.y;
         if (InputHandler.click) {
             if (!LevelEditor.registered_click) {
-                LevelEditor.obstacle_creator = new Obstacle(InputHandler.mouseX + LevelEditor.offset.x, InputHandler.mouseY + LevelEditor.offset.y, 0, 0);
+                LevelEditor.obstacle_creator = new Obstacle(rel_x, rel_y, 0, 0);
                 LevelEditor.registered_click = true;
             }
-            let new_width = InputHandler.mouseX - LevelEditor.obstacle_creator.x;
-            let new_height = InputHandler.mouseY - LevelEditor.obstacle_creator.y;
+            let new_width = rel_x - LevelEditor.obstacle_creator.x;
+            let new_height = rel_y - LevelEditor.obstacle_creator.y;
             LevelEditor.obstacle_creator.change_dims(new_width, new_height);
         }
-        
-        if (LevelEditor.registered_click && !InputHandler.click) {
+        // When click is released and there is an obstacle that can be created
+        else if (LevelEditor.registered_click && LevelEditor.obstacle_creator) {
             // Dont add obstacles that have 0 area
-            if (LevelEditor.obstacle_creator.x != 0 && LevelEditor.obstacle_creator.y != 0)
+            if (LevelEditor.obstacle_creator.width != 0 && LevelEditor.obstacle_creator.height != 0)
                 LevelEditor.level.insert_obj(LevelEditor.obstacle_creator);
             LevelEditor.obstacle_creator = null;
             LevelEditor.registered_click = false;
@@ -526,8 +566,9 @@ class LevelEditor {
         if (LevelEditor.obstacle_creator)
             LevelEditor.obstacle_creator.draw(LevelEditor.offset);
 
-        if (LevelEditor.pogo_dude)
-            LevelEditor.pogo_dude.draw();
+        LevelEditor.pogo_dude.draw(LevelEditor.offset);
+        
+        this.menu.draw();
     }
 }
 
@@ -576,8 +617,7 @@ class Game {
         if (!lvl)
             return;
         Game.level = lvl;
-        Game.pogo_dude.reset(Game.level.player_start[0],
-                             Game.level.player_start[1]);
+        Game.restart();
     }
 
     static restart() {
@@ -594,7 +634,7 @@ class Game {
         var numticks = 0;
         var now = get_time();
         // Run physics to catch up to realtime
-        while (Game.phystime < now) {
+        while (Game.phystime < now && StateHandler.state == "game") {
             Game.phystick();
             numticks++;
         }
@@ -654,21 +694,16 @@ class Game {
         for (let i = 0; i < Game.level.obstacles.length; i++) {
             Game.level.obstacles[i].draw(Game.offset);
         }
-        Game.pogo_dude.draw();
+        Game.pogo_dude.draw(Game.offset);
     }
     
     static draw_clock(force=false) {
         Timer.draw(force);
     }
     
-    static draw_in_play() {
+    static draw() {
         Game.draw_game_state();
         Game.draw_clock();
-    }
-
-    static draw() {
-
-        Game.draw_in_play();
     }
 }
 
@@ -684,23 +719,20 @@ class InputHandler {
 
 var game = new Game();
 
-function open_lvl_editor() {
-    LevelEditor.reset();
-    StateHandler.state = "lvledit";
-}
-
-Menu.buttons = [
+MainMenu.buttons = [
     // Levels
-    new Button(100, 100, 80, 80, "1", on_click=play_lvl_fn(level1)),
-    new Button(200, 100, 80, 80, "2", on_click=play_lvl_fn(level2)),
-    new Button(300, 100, 80, 80, "3", on_click=play_lvl_fn(level3)),
-    new Button(400, 100, 80, 80, "4", on_click=play_lvl_fn(level4)),
-    new Button(500, 100, 80, 80, "5", on_click=play_lvl_fn(level5)),
-    new Button(600, 100, 80, 80, "6", on_click=play_lvl_fn(level6)),
-    new Button(700, 100, 80, 80, "B", on_click=play_lvl_fn(badlevel)),
+    new Button(100, 100, 80, 80, "1", play_lvl_fn(level1)),
+    new Button(200, 100, 80, 80, "2", play_lvl_fn(level2)),
+    new Button(300, 100, 80, 80, "3", play_lvl_fn(level3)),
+    new Button(400, 100, 80, 80, "4", play_lvl_fn(level4)),
+    new Button(500, 100, 80, 80, "5", play_lvl_fn(level5)),
+    new Button(600, 100, 80, 80, "6", play_lvl_fn(level6)),
+    new Button(700, 100, 80, 80, "B", play_lvl_fn(badlevel)),
 
     // Level editor
-    new Button(100, 800, 1000, 80, "Level Editor", on_click=open_lvl_editor)
+    new Button(100, 800, 1000, 80, "Level Editor", function() {
+        StateHandler.state = "lvledit";
+    })
 ];
 
 function get_time() {
@@ -766,7 +798,8 @@ function resize_window() {
     ctx.canvas.width  = window.innerWidth;
     ctx.canvas.height = window.innerHeight;
 }
-resize_window();
+
 window.addEventListener("resize", resize_window);
+resize_window();
 
 requestAnimationFrame(StateHandler.handle);

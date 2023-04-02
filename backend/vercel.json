@@ -2,14 +2,7 @@
     "version": 2,
     "functions": {
         "index.js": {
-            "includeFiles": "frontend/**",
-            "runtime": "@vercel/node"
+            "includeFiles": "frontend/**"
         }
-    },
-    "routes": [
-        {
-            "src": "/(.*)",
-            "dest": "index.js"
-        }
-    ]
+    }
 }

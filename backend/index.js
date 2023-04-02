@@ -12,10 +12,6 @@ app.get('/api/score', async (req, res) => {
     return res.json("hello world");
 });
 
-app.get('/*', async (req, res) => {
-    return res.json(req);
-});
-
 app.listen(port, () => {
     console.log(`started server on port ${port}`);
 });

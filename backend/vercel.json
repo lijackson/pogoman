@@ -8,6 +8,10 @@
         {
             "src": "./frontend/index.html",
             "use": "@vercel/static"
+        },
+        {
+            "src": "./frontend/script.js",
+            "use": "@vercel/static"
         }
     ],
     "routes": [

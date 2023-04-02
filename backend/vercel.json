@@ -12,7 +12,7 @@
             "dest": "index.js"
         },
         {
-            "src": "/(.*)",
+            "src": "/frontend/(.*)",
             "dest": "./frontend"
         }
     ]

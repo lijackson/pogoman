@@ -16,8 +16,8 @@
             "dest": "index.js"
         },
         {
-            "src": "/",
-            "dest": "frontend/index.html"
+            "src": "/(?<file>.*)",
+            "dest": "frontend/$file"
         }
     ]
 }

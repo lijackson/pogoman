@@ -15,5 +15,3 @@ app.get('api/score', async (req, res) => {
 app.listen(port, () => {
     console.log(`started server on port ${port}`);
 });
-
-module.exports = app;

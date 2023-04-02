@@ -1,5 +1,8 @@
 {
     "version": 2,
+    "scripts": {
+        "vercel-build": "node ./index.js"
+    },
     "functions": {
         "index.js": {
             "includeFiles": "frontend/**"

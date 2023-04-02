@@ -6,7 +6,7 @@ const app = express();
 const port = 5000;
 // const DIR = fileURLToPath(dirname(import.meta.url));
 
-app.use('/', express.static('/frontend'));
+app.use('/', express.static('frontend'));
 
 app.get('/score', async (req, res) => {
     return res.json("hello world");

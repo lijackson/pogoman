@@ -8,7 +8,7 @@ const DIR = fileURLToPath(dirname(import.meta.url));
 
 app.use('/', express.static('frontend'));
 
-app.get('/score', async (req, res) => {
+app.get('api/score', async (req, res) => {
     return res.json("hello world");
 });
 

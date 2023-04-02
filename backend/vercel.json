@@ -8,6 +8,16 @@
         {
             "src": "./frontend/**",
             "use": "@vercel/static"
+        },
+    ],
+    "routes": [
+        {
+            "src": "/api/(.*)",
+            "dest": "index.js"
+        },
+        {
+            "src": "/",
+            "dest": "frontend/index.html"
         }
     ]
 }

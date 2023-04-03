@@ -4,7 +4,7 @@ ctx.imageSmoothingEnabled = false;
 ctx.mozImageSmoothingEnabled = false;
 
 // Milliseconds Per (physics game-)tick
-const MSPT = 3;
+const MSPT = 5;
 // This is about 60fps. Faster monitors or browsers might be different but I'm not checking for that
 const EXPECTED_FRAMERATE = 17;
 // this adjusts for different FPS to make movement consistent
@@ -13,11 +13,8 @@ const FMOD = MSPT / 15;
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
 
-const OBSTACLES_PER_CHUNK = 10;
-const RENDER_DIST = 2;
-
 function AABB(obs1, obs2) {
-    return AABB(obs1.x, obs1.y, obs1.w, obs1.h, obs2.x, obs2.y, obs2.w, obs2.h);
+    return AABB(obs1.x, obs1.y, obs1.width, obs1.height, obs2.x, obs2.y, obs2.width, obs2.height);
 }
 
 function AABB(x1, y1, w1, h1, x2, y2, w2, h2) {
@@ -86,22 +83,21 @@ class PogoDude {
         }
         
         // lean input
-        if (InputHandler.left) {
-            this.drot -= 0.2 * FMOD;
-        }
-        if (InputHandler.right) {
-            this.drot += 0.2 * FMOD;
-        }
+        if (InputHandler.left)
+            this.drot -= (0.2 + 0.1 * (this.drot>0)) * FMOD;
+        
+        if (InputHandler.right)
+            this.drot += (0.2 + 0.1 * (this.drot<0)) * FMOD;
+        
 
         // Control the spin (dont let it get too crazy)
         const drot_decay = Math.pow(0.99, FMOD);
         this.drot *= drot_decay;
-        if (this.drot > 4) {
+        if (this.drot > 4)
             this.drot = 4;
-        }
-        if (this.drot < -4) {
+        
+        if (this.drot < -4)
             this.drot = -4;
-        }
     }
 
     draw(offset) {
@@ -505,18 +501,23 @@ class LevelEditor {
     static offset = {x: -canvas.width/2, y: -canvas.height/2};
     static registered_click = false;
     static obstacle_creator = null;
+    static selection_window = {x: 0, y: 0, width: 0, height: 0};
+    static last_registered_mouse_position = null;
     static menu = new Menu([
         new Button(10, 10, 200, 50, "obstacle", function(){
             LevelEditor.mode = "obstacle";
         }),
-        new Button(10, 70, 200, 50, "select", function(){
-            LevelEditor.mode = "select";
+        new Button(10, 70, 200, 50, "winblock", function(){
+            LevelEditor.mode = "win";
         }),
         new Button(10, 130, 200, 50, "drag", function(){
             LevelEditor.mode = "drag";
         }),
-        new Button(10, 130, 200, 50, "clear", LevelEditor.reset),
-        new Button(10, 190, 200, 50, "play", function() {
+        new Button(10, 190, 200, 50, "select", function(){
+            LevelEditor.mode = "select";
+        }),
+        new Button(10, 250, 200, 50, "clear", LevelEditor.reset),
+        new Button(10, 310, 200, 50, "play", function() {
             StateHandler.state = "game";
             Game.load_level(LevelEditor.level);
             Game.restart();
@@ -544,10 +545,10 @@ class LevelEditor {
         var rel_x = InputHandler.mouseX + LevelEditor.offset.x;
         var rel_y = InputHandler.mouseY + LevelEditor.offset.y;
         switch (LevelEditor.mode) {
-            case "obstacle":
+            case "obstacle": case "win":
                 if (InputHandler.click) {
                     if (!LevelEditor.registered_click) {
-                        LevelEditor.obstacle_creator = new Obstacle(rel_x, rel_y, 0, 0);
+                        LevelEditor.obstacle_creator = new Obstacle(rel_x, rel_y, 0, 0, LevelEditor.mode);
                         LevelEditor.registered_click = true;
                     }
                     let new_width = rel_x - LevelEditor.obstacle_creator.x;
@@ -565,11 +566,57 @@ class LevelEditor {
                     LevelEditor.obstacle_creator = null;
                     LevelEditor.registered_click = false;
                 }
+
+                break;
+            case "drag":
+                if (InputHandler.click) {
+                    if (LevelEditor.last_registered_mouse_position == null)
+                        LevelEditor.last_registered_mouse_position = [InputHandler.mouseX, InputHandler.mouseY];
+                        
+                    LevelEditor.offset.x += LevelEditor.last_registered_mouse_position[0] - InputHandler.mouseX;
+                    LevelEditor.offset.y += LevelEditor.last_registered_mouse_position[1] - InputHandler.mouseY;
+                    LevelEditor.last_registered_mouse_position = [InputHandler.mouseX, InputHandler.mouseY];
+                } else {
+                    LevelEditor.last_registered_mouse_position = null;
+                }
+                break;
+            case "select":
+                // Handle drawing the selection window
+                if (InputHandler.click) {
+                    if (!LevelEditor.registered_click) {
+                        LevelEditor.selection_window.x = rel_x;
+                        LevelEditor.selection_window.y = rel_y;
+                        LevelEditor.registered_click = true;
+                    }
+
+                    let new_width = rel_x - LevelEditor.selection_window.x;
+                    let new_height = rel_y - LevelEditor.selection_window.y;
+
+                    LevelEditor.selection_window.width = new_width;
+                    LevelEditor.selection_window.height = new_height;
+                }
+                // When click is released and there is a selection window
+                else if (LevelEditor.registered_click && LevelEditor.selection_window) {
+                    
+                    // TODO: actually handle the selection logic
+
+                    LevelEditor.selection_window = {x: 0, y: 0, width: 0, height: 0};
+                    LevelEditor.registered_click = false;
+                }
+                break;
         }
 
         LevelEditor.draw();
 
         StateHandler.handle();
+    }
+
+    static draw_selection_window() {
+        ctx.beginPath();
+        ctx.strokeStyle = 'white';
+        ctx.rect(this.selection_window.x - LevelEditor.offset.x, this.selection_window.y - LevelEditor.offset.y,
+                    this.selection_window.width, this.selection_window.height);
+        ctx.stroke();
     }
 
     static draw() {
@@ -585,6 +632,8 @@ class LevelEditor {
             LevelEditor.obstacle_creator.draw(LevelEditor.offset);
 
         LevelEditor.pogo_dude.draw(LevelEditor.offset);
+
+        LevelEditor.draw_selection_window();
         
         this.menu.draw();
     }
@@ -731,6 +780,7 @@ class InputHandler {
     static mouseX = 0;
     static mouseY = 0;
     static click = false;
+    static last_click_coords = [0, 0];
 }
 
 var game = new Game();
@@ -800,8 +850,11 @@ document.addEventListener("mousemove", function(e) {
 document.addEventListener("mousedown", function(e) {
     InputHandler.mouseX = e.clientX;
     InputHandler.mouseY = e.clientY;
-    if (e.button == 0)
+    if (e.button == 0) {
+        if (!InputHandler.click)
+            InputHandler.last_click_coords = [e.clientX, e.clientY];
         InputHandler.click = true;
+    }
 }); 
 document.addEventListener("mouseup", function(e) {
     InputHandler.mouseX = e.clientX;

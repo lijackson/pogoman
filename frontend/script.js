@@ -369,17 +369,30 @@ function play_lvl_fn(lvl) {
 
 class Menu {
     buttons = [];
+    is_visible = true;
 
     constructor(btns) {
         this.buttons = btns;
     }
 
     draw() {
+        if (!this.is_visible)
+            return;
+
         // Draw Buttons
         for (let i = 0; i < this.buttons.length; i++) {
             this.buttons[i].exist();
             this.buttons[i].draw();
         }
+    }
+
+    // Check if the given coords overlap any button contained in the menu
+    on_button(coords) {
+        for (let i = 0; i < this.buttons.length; i++) {
+            if (this.buttons[i].point_intersects(coords[0], coords[1]))
+                return true;
+        }
+        return false;
     }
 }
 
@@ -501,7 +514,7 @@ class LevelEditor {
     static offset = {x: -canvas.width/2, y: -canvas.height/2};
     static registered_click = false;
     static obstacle_creator = null;
-    static selection_window = {x: 0, y: 0, width: 0, height: 0};
+    static selection_window = null;
     static last_registered_mouse_position = null;
     static menu = new Menu([
         new Button(10, 10, 200, 50, "obstacle", function(){
@@ -528,6 +541,7 @@ class LevelEditor {
         LevelEditor.offset = {x: -canvas.width/2, y: -canvas.height/2};
         LevelEditor.registered_click = false;
         LevelEditor.obstacle_creator = null;
+        LevelEditor.selection_window = null
         LevelEditor.is_open = true;
         LevelEditor.mode = "obstacle";
     }
@@ -537,6 +551,13 @@ class LevelEditor {
         LevelEditor.pogo_dude.move_to(0, 0);
     }
 
+    static interacting_with_menu() {
+        return LevelEditor.menu.is_visible && (
+                LevelEditor.menu.on_button([InputHandler.mouseX, InputHandler.mouseY])) || (
+                LevelEditor.menu.on_button(InputHandler.start_click_coords ||
+                InputHandler.start_click_coords != null));
+    }
+
     static animframe() {
         if (!LevelEditor.is_open)
             LevelEditor.on_open();
@@ -544,19 +565,27 @@ class LevelEditor {
 
         var rel_x = InputHandler.mouseX + LevelEditor.offset.x;
         var rel_y = InputHandler.mouseY + LevelEditor.offset.y;
-        switch (LevelEditor.mode) {
+
+        var just_clicked = !LevelEditor.registered_click && InputHandler.click;
+        if (just_clicked)
+            LevelEditor.registered_click = true;
+        var just_unclicked = LevelEditor.registered_click && !InputHandler.click;
+        if (just_unclicked)
+            LevelEditor.registered_click = false;
+
+        if (!LevelEditor.interacting_with_menu()) {
+            switch (LevelEditor.mode) {
             case "obstacle": case "win":
                 if (InputHandler.click) {
-                    if (!LevelEditor.registered_click) {
+                    if (just_clicked)
                         LevelEditor.obstacle_creator = new Obstacle(rel_x, rel_y, 0, 0, LevelEditor.mode);
-                        LevelEditor.registered_click = true;
-                    }
+                    
                     let new_width = rel_x - LevelEditor.obstacle_creator.x;
                     let new_height = rel_y - LevelEditor.obstacle_creator.y;
                     LevelEditor.obstacle_creator.change_dims(new_width, new_height);
                 }
                 // When click is released and there is an obstacle that can be created
-                else if (LevelEditor.registered_click && LevelEditor.obstacle_creator) {
+                else if (just_unclicked && LevelEditor.obstacle_creator) {
                     // Dont add obstacles that have 0 area
                     if (LevelEditor.obstacle_creator.width != 0 && LevelEditor.obstacle_creator.height != 0) {
                         LevelEditor.obstacle_creator.validate();
@@ -564,7 +593,6 @@ class LevelEditor {
                     }
 
                     LevelEditor.obstacle_creator = null;
-                    LevelEditor.registered_click = false;
                 }
 
                 break;
@@ -583,28 +611,33 @@ class LevelEditor {
             case "select":
                 // Handle drawing the selection window
                 if (InputHandler.click) {
-                    if (!LevelEditor.registered_click) {
-                        LevelEditor.selection_window.x = rel_x;
-                        LevelEditor.selection_window.y = rel_y;
-                        LevelEditor.registered_click = true;
+                    if (just_clicked) {
+                        LevelEditor.selection_window = {x: rel_x, y: rel_y, width: 0, height: 0};
+                    } else {
+                        if (LevelEditor.selection_window == null)
+                            break;
+                        let new_width = rel_x - LevelEditor.selection_window.x;
+                        let new_height = rel_y - LevelEditor.selection_window.y;
+
+                        LevelEditor.selection_window.width = new_width;
+                        LevelEditor.selection_window.height = new_height;
                     }
-
-                    let new_width = rel_x - LevelEditor.selection_window.x;
-                    let new_height = rel_y - LevelEditor.selection_window.y;
-
-                    LevelEditor.selection_window.width = new_width;
-                    LevelEditor.selection_window.height = new_height;
                 }
                 // When click is released and there is a selection window
-                else if (LevelEditor.registered_click && LevelEditor.selection_window) {
+                // TODO: consider always handling selection logic?
+                else if (just_unclicked && LevelEditor.selection_window) {
                     
                     // TODO: actually handle the selection logic
 
-                    LevelEditor.selection_window = {x: 0, y: 0, width: 0, height: 0};
-                    LevelEditor.registered_click = false;
+                    LevelEditor.selection_window = null;
                 }
                 break;
+            }
         }
+
+        LevelEditor.menu.is_visible =   LevelEditor.selection_window == null &&
+                                        LevelEditor.obstacle_creator == null &&
+                                        LevelEditor.last_registered_mouse_position == null;
 
         LevelEditor.draw();
 
@@ -612,6 +645,8 @@ class LevelEditor {
     }
 
     static draw_selection_window() {
+        if (LevelEditor.selection_window == null)
+            return;
         ctx.beginPath();
         ctx.strokeStyle = 'white';
         ctx.rect(this.selection_window.x - LevelEditor.offset.x, this.selection_window.y - LevelEditor.offset.y,
@@ -780,7 +815,7 @@ class InputHandler {
     static mouseX = 0;
     static mouseY = 0;
     static click = false;
-    static last_click_coords = [0, 0];
+    static start_click_coords = null;
 }
 
 var game = new Game();
@@ -852,15 +887,17 @@ document.addEventListener("mousedown", function(e) {
     InputHandler.mouseY = e.clientY;
     if (e.button == 0) {
         if (!InputHandler.click)
-            InputHandler.last_click_coords = [e.clientX, e.clientY];
+            InputHandler.start_click_coords = [e.clientX, e.clientY];
         InputHandler.click = true;
     }
 }); 
 document.addEventListener("mouseup", function(e) {
     InputHandler.mouseX = e.clientX;
     InputHandler.mouseY = e.clientY;
-    if (e.button == 0)
+    if (e.button == 0) {
         InputHandler.click = false;
+        InputHandler.start_click_coords = null;
+    }
 }); 
 
 function resize_window() {

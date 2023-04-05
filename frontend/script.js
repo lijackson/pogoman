@@ -20,8 +20,6 @@ function obj_AABB(obs1, obs2) {
 function coord_AABB(x1, y1, w1, h1, x2, y2, w2, h2) {
     let x_overlap = x1 < x2 + w2 && x1 + w1 > x2;
     let y_overlap = y1 < y2 + h2 && y1 + h1 > y2;
-    // console.log(x1, y1, w1, h1, x2, y2, w2, h2);
-    // console.log(x_overlap, y_overlap);
     return x_overlap && y_overlap;
 }
 
@@ -250,9 +248,9 @@ class Level {
         this.worldborder = Math.max(this.worldborder, obst.y + obst.height)
     }
 
-    remove_obj(id) {
+    remove_by_id(id) {
         if (id in this.obstacles)
-            this.obstacles.delete(id);
+            delete this.obstacles[id];
     }
 
     set_player_start(x, y) {
@@ -539,7 +537,14 @@ class LevelEditor {
     static level = new Level({"player_start": [0, 0]});
     static pogo_dude = new PogoDude(0, 0);
     static offset = {x: -canvas.width/2, y: -canvas.height/2};
-    static registered_click = false;
+    static last_input = {
+        clicked: false,
+        click_pos: null,
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+    };
     static obstacle_creator = null;
     static selection_window = null;
     static last_registered_mouse_position = null;
@@ -566,7 +571,7 @@ class LevelEditor {
 
     static on_open() {
         LevelEditor.offset = {x: -canvas.width/2, y: -canvas.height/2};
-        LevelEditor.registered_click = false;
+        LevelEditor.last_input.clicked = false;
         LevelEditor.obstacle_creator = null;
         LevelEditor.selection_window = null
         LevelEditor.selected_objs = new Set();
@@ -612,8 +617,8 @@ class LevelEditor {
     static interacting_with_menu() {
         return LevelEditor.menu.is_visible && (
                 LevelEditor.menu.on_button([InputHandler.mouseX, InputHandler.mouseY])) || (
-                LevelEditor.menu.on_button(InputHandler.start_click_coords ||
-                InputHandler.start_click_coords != null));
+                 LevelEditor.menu.on_button(InputHandler.start_click_coords ||
+                 InputHandler.start_click_coords != null));
     }
 
     static animframe() {
@@ -624,18 +629,41 @@ class LevelEditor {
         var rel_x = InputHandler.mouseX + LevelEditor.offset.x;
         var rel_y = InputHandler.mouseY + LevelEditor.offset.y;
 
-        var just_clicked = !LevelEditor.registered_click && InputHandler.click;
-        if (just_clicked)
-            LevelEditor.registered_click = true;
-        var just_unclicked = LevelEditor.registered_click && !InputHandler.click;
-        if (just_unclicked)
-            LevelEditor.registered_click = false;
+        var just = {
+            clicked: !LevelEditor.last_input.clicked && InputHandler.click,
+            unclicked: LevelEditor.last_input.clicked && !InputHandler.click,
+            up: !LevelEditor.last_input.up && InputHandler.up,
+            down: !LevelEditor.last_input.down && InputHandler.down,
+            left: !LevelEditor.last_input.left && InputHandler.left,
+            right: !LevelEditor.last_input.right && InputHandler.right,
+        };
+        
+        LevelEditor.last_input.clicked = InputHandler.click;
+        LevelEditor.last_input.up = InputHandler.up;
+        LevelEditor.last_input.down = InputHandler.down;
+        LevelEditor.last_input.left = InputHandler.left;
+        LevelEditor.last_input.right = InputHandler.right;
 
         if (!LevelEditor.interacting_with_menu()) {
+            // Single pixel adjustment for all selected obstacles
+            let px_dx = just.right - just.left;
+            let px_dy = just.down - just.up;
+            if (px_dx != 0 || px_dy != 0 || InputHandler.eq_del) {
+                for (let id of LevelEditor.selected_objs) {
+                    LevelEditor.level.obstacles[id].move_by(px_dx, px_dy);
+                    if (InputHandler.eq_del) {
+                        LevelEditor.level.remove_by_id(id);
+                        LevelEditor.selected_objs.delete(id);
+                    }
+                }
+            }
+            // Check for deleting selected objects 
+
+
             switch (LevelEditor.mode) {
             case "obstacle": case "win":
                 if (InputHandler.click) {
-                    if (just_clicked)
+                    if (just.clicked)
                         LevelEditor.obstacle_creator = new Obstacle(rel_x, rel_y, 0, 0, LevelEditor.mode);
                     
                     let new_width = rel_x - LevelEditor.obstacle_creator.x;
@@ -643,7 +671,7 @@ class LevelEditor {
                     LevelEditor.obstacle_creator.change_dims(new_width, new_height);
                 }
                 // When click is released and there is an obstacle that can be created
-                else if (just_unclicked && LevelEditor.obstacle_creator) {
+                else if (just.unclicked && LevelEditor.obstacle_creator) {
                     // Dont add obstacles that have 0 area
                     if (LevelEditor.obstacle_creator.width != 0 && LevelEditor.obstacle_creator.height != 0) {
                         LevelEditor.obstacle_creator.validate();
@@ -656,11 +684,11 @@ class LevelEditor {
                 break;
             case "drag":
                 if (InputHandler.click) {
-                    if (LevelEditor.last_registered_mouse_position == null)
-                        LevelEditor.last_registered_mouse_position = [InputHandler.mouseX, InputHandler.mouseY];
+                    if (LevelEditor.last_input.click_pos == null)
+                        LevelEditor.last_input.click_pos = [InputHandler.mouseX, InputHandler.mouseY];
 
-                    var dx = LevelEditor.last_registered_mouse_position[0] - InputHandler.mouseX;
-                    var dy = LevelEditor.last_registered_mouse_position[1] - InputHandler.mouseY;
+                    var dx = LevelEditor.last_input.click_pos[0] - InputHandler.mouseX;
+                    var dy = LevelEditor.last_input.click_pos[1] - InputHandler.mouseY;
 
                     // If anything is selected, move it
                     if (LevelEditor.selected_objs.size > 0) {
@@ -674,21 +702,15 @@ class LevelEditor {
                         LevelEditor.offset.y += dy;
                     }
                     
-                    LevelEditor.last_registered_mouse_position = [InputHandler.mouseX, InputHandler.mouseY];
+                    LevelEditor.last_input.click_pos = [InputHandler.mouseX, InputHandler.mouseY];
                 } else {
-                    let px_dx = InputHandler.right - InputHandler.left;
-                    let px_dy = InputHandler.down - InputHandler.up;
-                    for (let id in LevelEditor.level.obstacles) {
-                        if (LevelEditor.selected_objs.has(id))
-                            LevelEditor.level.obstacles[id].move_by(px_dx/4, px_dy/4);
-                    }
-                    LevelEditor.last_registered_mouse_position = null;
+                    LevelEditor.last_input.click_pos = null;
                 }
                 break;
             case "select":
                 // Handle drawing the selection window
                 if (InputHandler.click) {
-                    if (just_clicked) {
+                    if (just.clicked) {
                         LevelEditor.selection_window = {x: rel_x, y: rel_y, width: 0, height: 0};
                     } else {
                         if (LevelEditor.selection_window == null)
@@ -702,7 +724,7 @@ class LevelEditor {
                     }
                 }
                 // When click is released and there is a selection window
-                else if (just_unclicked && LevelEditor.selection_window) {
+                else if (just.unclicked && LevelEditor.selection_window) {
                     LevelEditor.selection_window = null;
                 }
                 break;
@@ -711,7 +733,7 @@ class LevelEditor {
 
         LevelEditor.menu.is_visible =   LevelEditor.selection_window == null &&
                                         LevelEditor.obstacle_creator == null &&
-                                        LevelEditor.last_registered_mouse_position == null;
+                                        LevelEditor.last_input.click_pos == null;
 
         LevelEditor.draw();
 
@@ -890,6 +912,9 @@ class InputHandler {
     static down = false;
     static space = false;
     static esc = false;
+    static eq_del = false;
+    static del = false;
+    static back = false;
     static mouseX = 0;
     static mouseY = 0;
     static click = false;
@@ -940,7 +965,14 @@ document.addEventListener("keydown", function(k) {
         case 27:
             InputHandler.esc = true;
             break;
-        default:
+        case 46:
+            InputHandler.del = true;
+            InputHandler.eq_del = true;
+            break;
+        case 8:
+            InputHandler.back = true;
+            InputHandler.eq_del = true;
+            break;
         }
 });
 
@@ -963,6 +995,14 @@ document.addEventListener("keyup", function(k) {
             break;
         case 27:
             InputHandler.esc = false;
+            break;
+        case 46:
+            InputHandler.del = false;
+            InputHandler.eq_del = InputHandler.back;
+            break;
+        case 8:
+            InputHandler.back = false;
+            InputHandler.eq_del = InputHandler.del;
             break;
     }
 });

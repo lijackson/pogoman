@@ -13,13 +13,15 @@ const FMOD = MSPT / 15;
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
 
-function AABB(obs1, obs2) {
-    return AABB(obs1.x, obs1.y, obs1.width, obs1.height, obs2.x, obs2.y, obs2.width, obs2.height);
+function obj_AABB(obs1, obs2) {
+    return coord_AABB(obs1.x, obs1.y, obs1.width, obs1.height, obs2.x, obs2.y, obs2.width, obs2.height);
 }
 
-function AABB(x1, y1, w1, h1, x2, y2, w2, h2) {
-    let x_overlap = x1 < x2 + w2 && x1 + w1 < x2;
-    let y_overlap = y1 < y2 + h2 && y1 + h1 < y2;
+function coord_AABB(x1, y1, w1, h1, x2, y2, w2, h2) {
+    let x_overlap = x1 < x2 + w2 && x1 + w1 > x2;
+    let y_overlap = y1 < y2 + h2 && y1 + h1 > y2;
+    // console.log(x1, y1, w1, h1, x2, y2, w2, h2);
+    // console.log(x_overlap, y_overlap);
     return x_overlap && y_overlap;
 }
 
@@ -146,26 +148,21 @@ class PogoDude {
         this.y += dy;
     }
 }
-
+const OBST_COLORS = {
+    "obstacle": "#000000",
+    "win": "#008800",
+};
 class Obstacle {
     static next_id = 0;
 
-    constructor(x, y, width, height, type = "block") {
+    constructor(x, y, width, height, type = "obstacle") {
         this.x = x;
         this.y = y;
         this.id = Obstacle.next_id++;
         this.width = width;
         this.height = height;
         this.rotation = 0;
-        this.sprite = new Image(8, 8);
-        this.sprite.src = "assets/obstacle.png";
-        if (type == "win") {
-            this.interaction = "win";
-            this.sprite.src = "assets/win_block.png";
-        } else {
-            this.interaction = "bounce"
-            this.sprite.src = "assets/obstacle.png";
-        }
+        this.type = type;
     }
 
     point_intersects(x, y) {
@@ -184,6 +181,11 @@ class Obstacle {
         this.y = new_y;
     }
 
+    move_by(new_x, new_y) {
+        this.x += new_x;
+        this.y += new_y;
+    }
+
     validate() {
         if (this.width < 0) {
             this.x = this.x + this.width;
@@ -195,8 +197,17 @@ class Obstacle {
         }
     }
 
-    draw(offset) {
-        ctx.drawImage(this.sprite, this.x - offset.x, this.y - offset.y, this.width, this.height);
+    draw(offset, highlight=false) {
+        ctx.fillStyle = OBST_COLORS[this.type];
+        ctx.fillRect(   this.x - offset.x, this.y - offset.y,
+                        this.width, this.height);
+        if (highlight) {
+            ctx.beginPath();
+            ctx.strokeStyle = "#DDDDDD";
+            ctx.rect(   this.x - offset.x, this.y - offset.y,
+                        this.width, this.height);
+            ctx.stroke();
+        }
     }
 }
 
@@ -204,7 +215,7 @@ class Level {
     
     worldborder = 50;
     player_start = [0, 0]
-    obstacles = [];
+    obstacles = {};
 
     constructor(jsonlvl = {}) {
         this.worldborder = 0;
@@ -217,7 +228,8 @@ class Level {
         if ("obstacles" in jsonlvl) {
             for (let i = 0; i < jsonlvl["obstacles"].length; i++) {
                 var dat = jsonlvl["obstacles"][i];
-                this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3]));
+                var new_obst = new Obstacle(dat[0], dat[1], dat[2], dat[3]);
+                this.obstacles[new_obst.id] = new_obst;
                 this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
             }
         }
@@ -225,24 +237,39 @@ class Level {
         if ("win_blocks" in jsonlvl) {
             for (let i = 0; i < jsonlvl["win_blocks"].length; i++) {
                 var dat = jsonlvl["win_blocks"][i];
-                this.obstacles.push(new Obstacle(dat[0], dat[1], dat[2], dat[3], "win"));
+                var new_obst = new Obstacle(dat[0], dat[1], dat[2], dat[3], "win");
+                this.obstacles[new_obst.id] = new_obst;
                 this.worldborder = Math.max(this.worldborder, dat[1] + dat[3])
             }
         }
         this.worldborder += 50;
     }
 
-    insert_obj(obj) {
-        this.obstacles.push(obj);
-        this.worldborder = Math.max(this.worldborder, obj.y + obj.height)
+    insert_obst(obst) {
+        this.obstacles[obst.id] = obst;
+        this.worldborder = Math.max(this.worldborder, obst.y + obst.height)
     }
 
-    remove_objs_by_area(boundbox) {
-        
+    remove_obj(id) {
+        if (id in this.obstacles)
+            this.obstacles.delete(id);
     }
 
     set_player_start(x, y) {
         this.player_start = [x, y];
+    }
+
+    json() {
+        obj = {
+            "player_start": this.player_start,
+            "obstacles": [],
+            "win_blocks": []
+        }
+
+        // TODO: finish the json output of the level (this should be easy)
+
+        console.log(obj);
+        return obj;
     }
 }
 
@@ -529,7 +556,7 @@ class LevelEditor {
         new Button(10, 190, 200, 50, "select", function(){
             LevelEditor.mode = "select";
         }),
-        new Button(10, 250, 200, 50, "clear", LevelEditor.reset),
+        new Button(10, 250, 200, 50, "reset", LevelEditor.reset),
         new Button(10, 310, 200, 50, "play", function() {
             StateHandler.state = "game";
             Game.load_level(LevelEditor.level);
@@ -542,13 +569,44 @@ class LevelEditor {
         LevelEditor.registered_click = false;
         LevelEditor.obstacle_creator = null;
         LevelEditor.selection_window = null
+        LevelEditor.selected_objs = new Set();
         LevelEditor.is_open = true;
         LevelEditor.mode = "obstacle";
+    }
+
+    static get_selected_objects() {
+        var selected = new Set();
+        if (LevelEditor.selection_window == null)
+            return selected;
+
+        // Fix negative width and height for collision detection
+        var selected_area = {x: LevelEditor.selection_window.x,
+            y: LevelEditor.selection_window.y,
+            width: LevelEditor.selection_window.width,
+            height: LevelEditor.selection_window.height};
+        if (selected_area.width < 0) {
+            selected_area.x += selected_area.width;
+            selected_area.width = - selected_area.width;
+        }
+        if (selected_area.height < 0) {
+            selected_area.y += selected_area.height;
+            selected_area.height = - selected_area.height;
+        }
+
+        // Calculate which obstacles are overlapped with the selection area
+        for (let id in LevelEditor.level.obstacles) {
+            if (obj_AABB(selected_area, LevelEditor.level.obstacles[id])) {
+                selected.add(id);
+            }
+        }
+
+        return selected;
     }
 
     static reset() {
         LevelEditor.level = new Level({"player_start": [0, 0]});
         LevelEditor.pogo_dude.move_to(0, 0);
+        LevelEditor.on_open();
     }
 
     static interacting_with_menu() {
@@ -589,7 +647,7 @@ class LevelEditor {
                     // Dont add obstacles that have 0 area
                     if (LevelEditor.obstacle_creator.width != 0 && LevelEditor.obstacle_creator.height != 0) {
                         LevelEditor.obstacle_creator.validate();
-                        LevelEditor.level.insert_obj(LevelEditor.obstacle_creator);
+                        LevelEditor.level.insert_obst(LevelEditor.obstacle_creator);
                     }
 
                     LevelEditor.obstacle_creator = null;
@@ -600,11 +658,30 @@ class LevelEditor {
                 if (InputHandler.click) {
                     if (LevelEditor.last_registered_mouse_position == null)
                         LevelEditor.last_registered_mouse_position = [InputHandler.mouseX, InputHandler.mouseY];
-                        
-                    LevelEditor.offset.x += LevelEditor.last_registered_mouse_position[0] - InputHandler.mouseX;
-                    LevelEditor.offset.y += LevelEditor.last_registered_mouse_position[1] - InputHandler.mouseY;
+
+                    var dx = LevelEditor.last_registered_mouse_position[0] - InputHandler.mouseX;
+                    var dy = LevelEditor.last_registered_mouse_position[1] - InputHandler.mouseY;
+
+                    // If anything is selected, move it
+                    if (LevelEditor.selected_objs.size > 0) {
+                        for (let id in LevelEditor.level.obstacles) {
+                            if (LevelEditor.selected_objs.has(id))
+                                LevelEditor.level.obstacles[id].move_by(-dx, -dy);
+                        }
+                    // Otherwise move the whole screen
+                    } else {
+                        LevelEditor.offset.x += dx;
+                        LevelEditor.offset.y += dy;
+                    }
+                    
                     LevelEditor.last_registered_mouse_position = [InputHandler.mouseX, InputHandler.mouseY];
                 } else {
+                    let px_dx = InputHandler.right - InputHandler.left;
+                    let px_dy = InputHandler.down - InputHandler.up;
+                    for (let id in LevelEditor.level.obstacles) {
+                        if (LevelEditor.selected_objs.has(id))
+                            LevelEditor.level.obstacles[id].move_by(px_dx/4, px_dy/4);
+                    }
                     LevelEditor.last_registered_mouse_position = null;
                 }
                 break;
@@ -621,14 +698,11 @@ class LevelEditor {
 
                         LevelEditor.selection_window.width = new_width;
                         LevelEditor.selection_window.height = new_height;
+                        LevelEditor.selected_objs = LevelEditor.get_selected_objects();
                     }
                 }
                 // When click is released and there is a selection window
-                // TODO: consider always handling selection logic?
                 else if (just_unclicked && LevelEditor.selection_window) {
-                    
-                    // TODO: actually handle the selection logic
-
                     LevelEditor.selection_window = null;
                 }
                 break;
@@ -647,6 +721,7 @@ class LevelEditor {
     static draw_selection_window() {
         if (LevelEditor.selection_window == null)
             return;
+        
         ctx.beginPath();
         ctx.strokeStyle = 'white';
         ctx.rect(this.selection_window.x - LevelEditor.offset.x, this.selection_window.y - LevelEditor.offset.y,
@@ -658,11 +733,12 @@ class LevelEditor {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
 
-        for (let i = 0; i < LevelEditor.level.obstacles.length; i++) {
-            LevelEditor.level.obstacles[i].draw(LevelEditor.offset);
+        for (let id in LevelEditor.level.obstacles) {
+            LevelEditor.level.obstacles[id].draw(LevelEditor.offset, LevelEditor.selected_objs.has(id));
         }
-
+        
         if (LevelEditor.obstacle_creator)
             LevelEditor.obstacle_creator.draw(LevelEditor.offset);
 
@@ -764,17 +840,17 @@ class Game {
             StateHandler.state = "worldborder";
         }
 
-        for (let i = 0; i < Game.level.obstacles.length; i++) {
-            if (Game.level.obstacles[i].point_intersects(spring_pt.x, spring_pt.y)) {
-                if (Game.level.obstacles[i].interaction == "win") {
+        for (let id in Game.level.obstacles) {
+            if (Game.level.obstacles[id].point_intersects(spring_pt.x, spring_pt.y)) {
+                if (Game.level.obstacles[id].type == "win") {
                     StateHandler.state = "win";
                     break;
                 } else {
                     collision = true;
                 }
             }
-            if (Game.level.obstacles[i].point_intersects(head_pt.x, head_pt.y)) {
-                if (Game.level.obstacles[i].interaction == "win") {
+            if (Game.level.obstacles[id].point_intersects(head_pt.x, head_pt.y)) {
+                if (Game.level.obstacles[id].type == "win") {
                     StateHandler.state = "win";
                 } else {
                     StateHandler.state = "bonk";
@@ -791,8 +867,8 @@ class Game {
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        for (let i = 0; i < Game.level.obstacles.length; i++) {
-            Game.level.obstacles[i].draw(Game.offset);
+        for (let id in Game.level.obstacles) {
+            Game.level.obstacles[id].draw(Game.offset);
         }
         Game.pogo_dude.draw(Game.offset);
     }
@@ -810,6 +886,8 @@ class Game {
 class InputHandler {
     static left = false;
     static right = false;
+    static up = false;
+    static down = false;
     static space = false;
     static esc = false;
     static mouseX = 0;
@@ -847,8 +925,14 @@ document.addEventListener("keydown", function(k) {
         case 37:
             InputHandler.left = true;
             break;
+        case 38:
+            InputHandler.up = true;
+            break;
         case 39:
             InputHandler.right = true;
+            break;
+        case 40:
+            InputHandler.down = true;
             break;
         case 32:
             InputHandler.space = true;
@@ -865,8 +949,14 @@ document.addEventListener("keyup", function(k) {
         case 37:
             InputHandler.left = false;
             break;
+        case 38:
+            InputHandler.up = false;
+            break;
         case 39:
             InputHandler.right = false;
+            break;
+        case 40:
+            InputHandler.down = false;
             break;
         case 32:
             InputHandler.space = false;

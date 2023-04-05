@@ -57,7 +57,9 @@ class PogoDude {
                 this.drot *= 0.25;
                 this.y -= this.dy / 2;
                 this.x -= this.dx / 2;
-                momentum = Math.max(JUMP_STRENGTH, Math.sqrt(this.dy ** 2 + this.dx ** 2) * 0.9);
+                momentum = Math.max(JUMP_STRENGTH, Math.sqrt(this.dy ** 2 + this.dx ** 2) * 0.95);
+                if (InputHandler.down)
+                    momentum *= 0.85;
             }
 
             this.in_air = false;
@@ -618,6 +620,7 @@ class LevelEditor {
     }
 
     static reset() {
+        LevelEditor.level.json();
         LevelEditor.level = new Level({"player_start": [0, 0]});
         LevelEditor.pogo_dude.move_to(0, 0);
         LevelEditor.on_open();
@@ -865,8 +868,6 @@ class Game {
         let spring_pt = Game.pogo_dude.get_base_point();
         let head_pt = Game.pogo_dude.get_head_point();
         
-        Game.offset = {x: Game.pogo_dude.x - canvas.width / 2, y: Game.pogo_dude.y - canvas.height / 2};
-        
         if (Game.pogo_dude.y > Game.level.worldborder) {
             StateHandler.state = "worldborder";
         }
@@ -891,6 +892,8 @@ class Game {
         }
 
         Game.pogo_dude.update(collision);
+
+        Game.offset = {x: Game.pogo_dude.x - canvas.width / 2, y: Game.pogo_dude.y - canvas.height / 2};
     }
 
     static draw_game_state() {

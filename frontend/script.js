@@ -13,6 +13,12 @@ const FMOD = MSPT / 15;
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
 
+// Color map for obstacle types: "<type>": [<regular color>, <highlighted color>]
+const OBST_COLORS = {
+    "obstacle": ["#000000", "#333333"],
+    "win":      ["#008800", "#33AA33"],
+};
+
 function obj_AABB(obs1, obs2) {
     return coord_AABB(obs1.x, obs1.y, obs1.width, obs1.height, obs2.x, obs2.y, obs2.width, obs2.height);
 }
@@ -146,10 +152,7 @@ class PogoDude {
         this.y += dy;
     }
 }
-const OBST_COLORS = {
-    "obstacle": "#000000",
-    "win": "#008800",
-};
+
 class Obstacle {
     static next_id = 0;
 
@@ -196,16 +199,9 @@ class Obstacle {
     }
 
     draw(offset, highlight=false) {
-        ctx.fillStyle = OBST_COLORS[this.type];
+        ctx.fillStyle = OBST_COLORS[this.type][+highlight];
         ctx.fillRect(   this.x - offset.x, this.y - offset.y,
                         this.width, this.height);
-        if (highlight) {
-            ctx.beginPath();
-            ctx.strokeStyle = "#DDDDDD";
-            ctx.rect(   this.x - offset.x, this.y - offset.y,
-                        this.width, this.height);
-            ctx.stroke();
-        }
     }
 }
 
@@ -258,15 +254,28 @@ class Level {
     }
 
     json() {
-        obj = {
-            "player_start": this.player_start,
-            "obstacles": [],
-            "win_blocks": []
+        var obstacles = [];
+        var win_blocks = [];
+        for (let id in this.obstacles) {
+            // Unwrap the obstacle
+            let x = this.obstacles[id].x;
+            let y = this.obstacles[id].y;
+            let width = this.obstacles[id].width;
+            let height = this.obstacles[id].height;
+
+            if (this.obstacles[id].type == "obstacle")
+                obstacles.push([x, y, width, height]);
+            else if (this.obstacles[id].type == "win")
+                win_blocks.push([x, y, width, height]);
         }
 
-        // TODO: finish the json output of the level (this should be easy)
+        var obj = {
+            "player_start": this.player_start,
+            "obstacles": obstacles,
+            "win_blocks": win_blocks
+        }
 
-        console.log(obj);
+        console.log(JSON.stringify(obj));
         return obj;
     }
 }

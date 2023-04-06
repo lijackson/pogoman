@@ -84,8 +84,8 @@ class PogoDude {
             this.in_air = true;
             this.dx = momentum * Math.sin(this.rotation / 180 * Math.PI);
             this.dy = -momentum *  Math.cos(this.rotation / 180 * Math.PI);
-            this.x += this.dx * FMOD;
-            this.y += this.dy * FMOD;
+            this.x += 2* this.dx * FMOD;
+            this.y += 2* this.dy * FMOD;
 
             this.drot += 0.75 * this.dx;
         }

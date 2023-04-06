@@ -259,7 +259,7 @@ class Level {
         var obstacles = [];
         var win_blocks = [];
         for (let id in this.obstacles) {
-            // Unwrap the obstacle
+            // Unwrap obstacle
             let x = this.obstacles[id].x;
             let y = this.obstacles[id].y;
             let width = this.obstacles[id].width;
@@ -281,119 +281,6 @@ class Level {
         return obj;
     }
 }
-
-var level1 = new Level(
-    {
-        "player_start": [360, 240],
-        "obstacles" : [
-            [200, 300, 1000, 30],
-            [500, 250, 50, 50],
-            [800, 230, 50, 70],
-            [1100, 210, 50, 90]
-        ],
-        "win_blocks": [
-            [1200, 300, 200, 30]
-        ]
-    }
-);
-
-var level2 = new Level(
-    {
-        "player_start": [360, 240],
-        "obstacles": [
-            [200, 300, 300, 30],
-            [400, 100, 100, 200],
-            [50, 0, 100, 300],
-            [500, 100, 300, 20],
-            [500, 100, 300, 20],
-            [800, 50, 100, 250],
-        ],
-        "win_blocks": [
-            [800, 0, 100, 50, "win"]
-        ]
-    }
-);
-
-var level3 = new Level(
-    {
-        "player_start": [360, 240],
-        "obstacles": [
-            [200, 300, 300, 30],
-            [200, -300, 30, 600],
-            [470, -300, 30, 600],
-        ],
-        "win_blocks": [
-            [200, -330, 300, 30]
-        ]
-    }
-);
-
-var level4 = new Level(
-    {
-        "player_start": [360, 240],
-        "obstacles": [
-            [200, 300, 500, 30],
-            [700, -100, 30, 430],
-            [300, -100, 200, 200]
-        ],
-        "win_blocks": [
-            [300, -130, 200, 30]
-        ]
-    }
-);
-
-var level5 = new Level(
-    {
-        "player_start": [360, 240],
-        "obstacles": [
-            [200, 300, 1000, 30],
-            [500, -500, 400, 550],
-            [1200, -300, 30, 630]
-        ],
-        "win_blocks": [
-            [-30, -30, 60, 60, "win"]
-        ]
-    }
-);
-
-var level6 = new Level(
-    {
-        "player_start": [0, 0],
-        "obstacles": [
-            [-50, 100, 300, 30],
-            [400, -200, 100, 500],
-            [-50, 120, 100, 400],
-            [400, 500, 400, 30],
-            [1100, 0, 100, 500],
-        ],
-        "win_blocks": [
-            [1000, 0, 60, 60, "win"]
-        ]
-    }
-);
-
-var badlevel = new Level(
-    {
-        "player_start": [0, 0],
-        "obstacles": [
-            [-50, 100, 300, 30],
-            [400, -200, 100, 500],
-            [-50, 620, 100, 400],
-            [900, 750, 100, 400],
-            [800, 830, 100, 400],
-            [700, 900, 100, 400],
-            [400, 500, 400, 30],
-            [500, 570, 40, 30],
-            [400, 840, 70, 90],
-            [756, 290, 60, 60],
-            [998, 576, 20, 40],
-            [1100, 0, 40, 70],
-        ],
-        "win_blocks": [
-            [1000, 0, 60, 60, "win"]
-        ]
-    }
-);
 
 function play_lvl_fn(lvl) {
     return function() {
@@ -429,29 +316,6 @@ class Menu {
                 return true;
         }
         return false;
-    }
-}
-
-class MainMenu {
-    static buttons = [];
-
-    static animframe() {
-        MainMenu.draw();
-        
-        StateHandler.handle();
-    }
-
-    static draw() {
-        // Draw Background
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#55BBFF";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Draw Buttons
-        for (let i = 0; i < MainMenu.buttons.length; i++) {
-            MainMenu.buttons[i].exist();
-            MainMenu.buttons[i].draw();
-        }
     }
 }
 
@@ -499,6 +363,73 @@ class Button {
         var txtw = this.txt.length * fontsize * 0.6;
         var txth = fontsize * 0.6;
         ctx.fillText(this.txt, this.x + this.width/2 - txtw/2, this.y + this.height/2 + txth/2);
+    }
+}
+
+// TODO: idk? put this somewhere neater?
+var level1 = new Level(level1json);
+var level2 = new Level(level2json);
+var level3 = new Level(level3json);
+var level4 = new Level(level4json);
+var level5 = new Level(level5json);
+var level6 = new Level(level6json);
+var level7 = new Level(level7json);
+
+// These are the old levels, they will be removed at some point
+var oldlevel1 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,30],[500,250,50,50],[800,230,50,70],[1100,210,50,90]],"win_blocks":[[1200,300,200,30]]});
+var oldlevel2 = new Level({"player_start":[360,240],"obstacles":[[200,300,300,30],[400,100,100,200],[50,0,100,300],[500,100,300,20],[500,100,300,20],[800,50,100,250],],"win_blocks":[[800,0,100,50,"win"]]});
+var oldlevel3 = new Level({"player_start":[360,240],"obstacles":[[200,300,300,30],[200,-300,30,600],[470,-300,30,600],],"win_blocks":[[200,-330,300,30]]});
+var oldlevel4 = new Level({"player_start":[360,240],"obstacles":[[200,300,500,30],[700,-100,30,430],[300,-100,200,200]],"win_blocks":[[300,-130,200,30]]});
+var oldlevel5 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,30],[500,-500,400,550],[1200,-300,30,630]],"win_blocks":[[-30,-30,60,60,"win"]]});
+var oldlevel6 = new Level({"player_start":[0,0],"obstacles":[[-50,100,300,30],[400,-200,100,500],[-50,120,100,400],[400,500,400,30],[1100,0,100,500]],"win_blocks":[[1000,0,60,60,"win"]]});
+
+class MainMenu {
+    static buttons = [
+        // Levels
+        new Button(100, 100, 80, 80, "1", play_lvl_fn(level1)),
+        new Button(200, 100, 80, 80, "2", play_lvl_fn(level2)),
+        new Button(300, 100, 80, 80, "3", play_lvl_fn(level3)),
+        new Button(400, 100, 80, 80, "4", play_lvl_fn(level4)),
+        new Button(500, 100, 80, 80, "5", play_lvl_fn(level5)),
+        new Button(600, 100, 80, 80, "6", play_lvl_fn(level6)),
+        new Button(700, 100, 80, 80, "7", play_lvl_fn(level7)),
+
+        // Old levels
+        new Button(100, 200, 80, 80, "o1", play_lvl_fn(oldlevel1)),
+        new Button(200, 200, 80, 80, "o2", play_lvl_fn(oldlevel2)),
+        new Button(300, 200, 80, 80, "o3", play_lvl_fn(oldlevel3)),
+        new Button(400, 200, 80, 80, "o4", play_lvl_fn(oldlevel4)),
+        new Button(500, 200, 80, 80, "o5", play_lvl_fn(oldlevel5)),
+        new Button(600, 200, 80, 80, "o6", play_lvl_fn(oldlevel6)),
+    
+        // Level editor
+        new Button(100, 800, 1000, 80, "Level Editor", function() {
+            StateHandler.state = "lvledit";
+        })
+    ];
+
+    static animframe() {
+        // TODO: this is super hacky, please fix.
+        // The problem is that dynamically changing menu layout is gonna need a lot more
+        // consideration of the screen state and how to "position" the buttons dynamically
+        MainMenu.buttons[13].y = ctx.canvas.height-180;
+
+        MainMenu.draw();
+        
+        StateHandler.handle();
+    }
+
+    static draw() {
+        // Draw Background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#55BBFF";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Buttons
+        for (let i = 0; i < MainMenu.buttons.length; i++) {
+            MainMenu.buttons[i].exist();
+            MainMenu.buttons[i].draw();
+        }
     }
 }
 
@@ -934,22 +865,6 @@ class InputHandler {
 }
 
 var game = new Game();
-
-MainMenu.buttons = [
-    // Levels
-    new Button(100, 100, 80, 80, "1", play_lvl_fn(level1)),
-    new Button(200, 100, 80, 80, "2", play_lvl_fn(level2)),
-    new Button(300, 100, 80, 80, "3", play_lvl_fn(level3)),
-    new Button(400, 100, 80, 80, "4", play_lvl_fn(level4)),
-    new Button(500, 100, 80, 80, "5", play_lvl_fn(level5)),
-    new Button(600, 100, 80, 80, "6", play_lvl_fn(level6)),
-    new Button(700, 100, 80, 80, "B", play_lvl_fn(badlevel)),
-
-    // Level editor
-    new Button(100, 800, 1000, 80, "Level Editor", function() {
-        StateHandler.state = "lvledit";
-    })
-];
 
 function get_time() {
     let d = new Date();

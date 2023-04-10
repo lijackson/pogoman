@@ -457,13 +457,16 @@ class Timer {
 class DBHandler {
     static leaderboards = {};
     static logged_in_username = null;
+    static waiting_for_updates = 0;
 
     static async update_leaderboard(lvl_id) {
+        DBHandler.waiting_for_updates++;
         fetch(`/api/records/${lvl_id}`)
             .then(response=>response.json())
             .then(records => {
                 DBHandler.leaderboards[lvl_id] = records;
                 console.log(DBHandler.leaderboards[lvl_id]);
+                DBHandler.waiting_for_updates--;
             });
     }
 
@@ -498,7 +501,7 @@ class Leaderboard {
 
     static draw(x, y, width, height) {
         const border = 10;
-        const rh = 60; // Record height
+        const rh = 40; // Record height
         ctx.fillStyle = "#444444";
         ctx.fillRect(x, y, width, height);
         if (!(Leaderboard.level in DBHandler.leaderboards)) 
@@ -506,7 +509,7 @@ class Leaderboard {
         for (var i = 0; i < Math.min(10, DBHandler.leaderboards[Leaderboard.level].length); i++) {
             var rec = DBHandler.leaderboards[Leaderboard.level][i];
             this.draw_record(x+border, y+(rh+border)*i+border, width-border*2, rh, 
-                rec["username"], rec["time"]);
+                             rec["username"], rec["time"]/1000);
         }
     }
 
@@ -515,9 +518,10 @@ class Leaderboard {
         ctx.fillRect(x, y, width, height);
         var time_txt = time.toFixed(2);
         
+        const record_fontsize = 24;
         ctx.fillStyle = "white";
-        ctx.font = "24px Helvetica";
-        ctx.fillText(name, x, y);
+        ctx.font = `${record_fontsize}px Helvetica`;
+        ctx.fillText(name, x+10, y+record_fontsize+10);
         ctx.fillText(time_txt, x+width-100, y);
     }
 }

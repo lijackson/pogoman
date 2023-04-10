@@ -816,10 +816,10 @@ class PauseScreen {
 
         if (StateHandler.state == "win" && DBHandler.logged_in_username != null) {
             if (StateHandler.just_changed_state) {
-                console.log(`posting new time: ${Timer.time} on level: ${Game.level.name}`);
-                DBHandler.post_to_leaderboard(Game.level.name, Timer.time)
-                DBHandler.update_leaderboard(Game.level.name);
+                console.log(`posting new time: ${Game.phystime} on level: ${Game.level.name}`);
                 Leaderboard.level = Game.level.name;
+                DBHandler.post_to_leaderboard(Leaderboard.level, Game.phystime)
+                DBHandler.update_leaderboard(Leaderboard.level);
             }
             Leaderboard.draw(50,50,400,600);
         }

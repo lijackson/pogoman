@@ -459,8 +459,10 @@ class DBHandler {
     static logged_in_username = null;
 
     static async update_leaderboard(lvl_id) {
-        DBHandler.leaderboards[lvl_id] = await fetch(`/api/records/${lvl_id}`);
-            //.sort((a, b) => {a.time < b.time});
+        fetch(`/api/records/${lvl_id}`).then(function(res) {
+            DBHandler.leaderboards[lvl_id] = res;
+            console.log(DBHandler.leaderboards[lvl_id]);
+        });
     }
 
     static async post_to_leaderboard(lvl_id, time, replay={}) {
@@ -469,7 +471,7 @@ class DBHandler {
         
         // await DBHandler.update_leaderboard(lvl_id);
         
-        await fetch(`/api/records/submit`, {
+        var res = await fetch(`/api/records/submit`, {
             method: 'POST',
             headers: {
                 Accept: 'application.json',
@@ -481,6 +483,8 @@ class DBHandler {
                 time: time
             })
         });
+
+        console.log(`finished posting new time, got result: ${res} from server`);
 
         await DBHandler.update_leaderboard(lvl_id);
     }
@@ -812,6 +816,7 @@ class PauseScreen {
 
         if (StateHandler.state == "win" && DBHandler.logged_in_username != null) {
             if (StateHandler.just_changed_state) {
+                console.log(`posting new time: ${Timer.time} on level: ${Game.level.name}`);
                 DBHandler.post_to_leaderboard(Game.level.name, Timer.time)
                 DBHandler.update_leaderboard(Game.level.name);
                 Leaderboard.level = Game.level.name;

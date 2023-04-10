@@ -459,10 +459,12 @@ class DBHandler {
     static logged_in_username = null;
 
     static async update_leaderboard(lvl_id) {
-        fetch(`/api/records/${lvl_id}`).then(function(res) {
-            DBHandler.leaderboards[lvl_id] = res.json();
-            console.log(DBHandler.leaderboards[lvl_id]);
-        });
+        fetch(`/api/records/${lvl_id}`)
+            .then(response=>response.json())
+            .then(records => {
+                DBHandler.leaderboards[lvl_id] = records;
+                console.log(DBHandler.leaderboards[lvl_id]);
+            });
     }
 
     static async post_to_leaderboard(lvl_id, time, replay={}) {
@@ -502,15 +504,16 @@ class Leaderboard {
         if (!(Leaderboard.level in DBHandler.leaderboards)) 
             DBHandler.leaderboards[Leaderboard.level] = [];
         for (var i = 0; i < Math.min(10, DBHandler.leaderboards[Leaderboard.level].length); i++) {
+            var rec = DBHandler.leaderboards[Leaderboard.level][i];
             this.draw_record(x+border, y+(rh+border)*i+border, width-border*2, rh, 
-                DBHandler.leaderboards[Leaderboard.level]["username"], DBHandler.leaderboards[Leaderboard.level]["time"]);
+                rec["username"], rec["time"]);
         }
     }
 
     static draw_record(x, y, width, height, name, time) {
         ctx.fillStyle = "#CC9900";
         ctx.fillRect(x, y, width, height);
-        var time_txt = (time).toFixed(2);
+        var time_txt = time.toFixed(2);
         
         ctx.fillStyle = "white";
         ctx.font = "24px Helvetica";

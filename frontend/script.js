@@ -466,6 +466,7 @@ class DBHandler {
             .then(records => {
                 DBHandler.leaderboards[lvl_id] = records;
                 console.log(DBHandler.leaderboards[lvl_id]);
+                DBHandler.leaderboards[lvl_id].sort((a, b)=>{a.time - b.time})
                 DBHandler.waiting_for_updates--;
             });
     }
@@ -521,8 +522,8 @@ class Leaderboard {
         const record_fontsize = 24;
         ctx.fillStyle = "white";
         ctx.font = `${record_fontsize}px Helvetica`;
-        ctx.fillText(name, x+10, y+record_fontsize+10);
-        ctx.fillText(time_txt, x+width-100, y+record_fontsize+10);
+        ctx.fillText(name, x+10, y+record_fontsize+8);
+        ctx.fillText(time_txt, x+width-10-record_fontsize/3*time_txt.length, y+record_fontsize+10);
     }
 }
 

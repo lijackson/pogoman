@@ -460,7 +460,7 @@ class DBHandler {
 
     static async update_leaderboard(lvl_id) {
         fetch(`/api/records/${lvl_id}`).then(function(res) {
-            DBHandler.leaderboards[lvl_id] = res;
+            DBHandler.leaderboards[lvl_id] = res.json();
             console.log(DBHandler.leaderboards[lvl_id]);
         });
     }

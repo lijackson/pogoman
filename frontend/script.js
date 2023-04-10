@@ -522,7 +522,7 @@ class Leaderboard {
         ctx.fillStyle = "white";
         ctx.font = `${record_fontsize}px Helvetica`;
         ctx.fillText(name, x+10, y+record_fontsize+10);
-        ctx.fillText(time_txt, x+width-100, y);
+        ctx.fillText(time_txt, x+width-100, y+record_fontsize+10);
     }
 }
 

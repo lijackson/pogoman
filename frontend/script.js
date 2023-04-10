@@ -466,7 +466,7 @@ class DBHandler {
             .then(records => {
                 DBHandler.leaderboards[lvl_id] = records;
                 console.log(DBHandler.leaderboards[lvl_id]);
-                DBHandler.leaderboards[lvl_id].sort((a, b)=>{b.time - a.time})
+                DBHandler.leaderboards[lvl_id].sort((a, b)=>{return a.time - b.time})
                 DBHandler.waiting_for_updates--;
             });
     }

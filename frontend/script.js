@@ -212,9 +212,14 @@ class Level {
     worldborder = 50;
     player_start = [0, 0]
     obstacles = {};
+    name = "unnamed_level";
 
     constructor(jsonlvl = {}) {
         this.worldborder = 0;
+
+        if ("name" in jsonlvl){
+            this.name = jsonlvl["name"];
+        }
 
         if ("player_start" in jsonlvl){
             this.player_start = jsonlvl["player_start"];
@@ -449,14 +454,83 @@ class Timer {
     }
 }
 
+class DBHandler {
+    static leaderboards = {};
+    static logged_in_username = null;
+
+    static async update_leaderboard(lvl_id) {
+        DBHandler.leaderboards[lvl_id] = await fetch(`/api/records/${lvl_id}`);
+            //.sort((a, b) => {a.time < b.time});
+    }
+
+    static async post_to_leaderboard(lvl_id, time, replay={}) {
+        if (DBHandler.logged_in_username == null)
+            return;
+        
+        // await DBHandler.update_leaderboard(lvl_id);
+        
+        await fetch(`/api/records/submit`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application.json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                level_id: lvl_id,
+                username: DBHandler.logged_in_username,
+                time: time
+            })
+        });
+
+        await DBHandler.update_leaderboard(lvl_id);
+    }
+}
+
+class Leaderboard {
+
+    static level = "level1"
+
+    static draw(x, y, width, height) {
+        const border = 10;
+        const rh = 60; // Record height
+        ctx.fillStyle = "#444444";
+        ctx.fillRect(x, y, width, height);
+        if (!(Leaderboard.level in DBHandler.leaderboards)) 
+            DBHandler.leaderboards[Leaderboard.level] = [];
+        for (var i = 0; i < Math.min(10, DBHandler.leaderboards[Leaderboard.level].length); i++) {
+            this.draw_record(x+border, y+(rh+border)*i+border, width-border*2, rh, 
+                DBHandler.leaderboards[Leaderboard.level]["username"], DBHandler.leaderboards[Leaderboard.level]["time"]);
+        }
+    }
+
+    static draw_record(x, y, width, height, name, time) {
+        ctx.fillStyle = "#CC9900";
+        ctx.fillRect(x, y, width, height);
+        var time_txt = (time).toFixed(2);
+        
+        ctx.fillStyle = "white";
+        ctx.font = "24px Helvetica";
+        ctx.fillText(name, x, y);
+        ctx.fillText(time_txt, x+width-100, y);
+    }
+}
+
 class StateHandler {
+    static last_state = "none"
     static state = "mainmenu";
+    static just_changed_state = true;
     static handle() {
 
         // The ESC key should always return to main menu
         // It is the only input that should override the described input handling of the animation frames
         if (InputHandler.esc)
             StateHandler.state = "mainmenu";
+
+        StateHandler.just_changed_state = false;
+        if (StateHandler.state != StateHandler.last_state) {
+            StateHandler.last_state = StateHandler.state;
+            StateHandler.just_changed_state = true;
+        }
 
         const next_frame_from_state = {
             "mainmenu": MainMenu.animframe,
@@ -734,6 +808,15 @@ class PauseScreen {
         if (InputHandler.space) {
             StateHandler.state = "game";
             Game.restart();
+        }
+
+        if (StateHandler.state == "win" && DBHandler.logged_in_username != null) {
+            if (StateHandler.just_changed_state) {
+                DBHandler.post_to_leaderboard(Game.level.name, Timer.time)
+                DBHandler.update_leaderboard(Game.level.name);
+                Leaderboard.level = Game.level.name;
+            }
+            Leaderboard.draw(50,50,400,600);
         }
 
         StateHandler.handle();

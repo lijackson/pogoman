@@ -818,7 +818,7 @@ class PauseScreen {
             if (StateHandler.just_changed_state) {
                 console.log(`posting new time: ${Game.phystime} on level: ${Game.level.name}`);
                 Leaderboard.level = Game.level.name;
-                DBHandler.post_to_leaderboard(Leaderboard.level, Game.phystime)
+                DBHandler.post_to_leaderboard(Leaderboard.level, Game.clock)
                 DBHandler.update_leaderboard(Leaderboard.level);
             }
             Leaderboard.draw(50,50,400,600);

@@ -471,8 +471,8 @@ class DBHandler {
                                             {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
                                             {"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
                                             {"username": "BoB", "time": 4240, "level_id": "test_display"},
-                                            {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
-                                            {"username": "end", "time": 9390, "level_id": "test_display"}]};
+                                            {"username": "aydinsucks", "time": 93190, "level_id": "test_display"},
+                                            {"username": "end", "time": 9139390, "level_id": "test_display"}]};
     static player_bests = {};
     static logged_in_username = null;
     static waiting_for_updates = 0;
@@ -566,13 +566,13 @@ class Leaderboard {
     static draw_record(x, y, width, height, name, time) {
         ctx.fillStyle = "#CC9900";
         ctx.fillRect(x, y, width, height);
-        var time_txt = time.toFixed(2);
+        var time_txt = time.toFixed(3);
         
         const record_fontsize = 24;
         ctx.fillStyle = "white";
         ctx.font = `${record_fontsize}px Helvetica`;
         ctx.fillText(name, x+10, y+record_fontsize+7);
-        ctx.fillText(time_txt, x+width-10-record_fontsize/2*time_txt.length, y+record_fontsize+7);
+        ctx.fillText(time_txt, x+width-10-(record_fontsize+2)/2*time_txt.length, y+record_fontsize+7);
     }
 }
 
@@ -1042,8 +1042,10 @@ class ReplayEngine {
             }
 
             var curr_state = Game.phystick(l, r);
-            if (curr_state != "game")
-                return [curr_state, Game.clock];
+            if (curr_state != "game") {
+                Game.restart();
+                StateHandler.state = "pause";
+            }
             
             ReplayEngine.curr_tick_in_inpset++;
             if (ReplayEngine.curr_tick_in_inpset >= inp[1]) {

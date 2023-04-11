@@ -342,8 +342,10 @@ class Button {
     }
 
     point_intersects(x, y) {
-        let width_intersects = x < this.x + this.width && x > this.x;
-        let height_intersects = y < this.y + this.height && y > this.y;
+        let realx = this.x >= 0 ? this.x : ctx.canvas.width - this.width + this.x;
+        let realy = this.y >= 0 ? this.y : ctx.canvas.height - this.height + this.y;
+        let width_intersects = x < realx + this.width && x > realx;
+        let height_intersects = y < realy + this.height && y > realy;
         return width_intersects && height_intersects;
     }
 
@@ -358,8 +360,11 @@ class Button {
         var img = this.img;
         if (this.hovered)
             img = this.hover_img;
+
+        var realx = this.x >= 0 ? this.x : ctx.canvas.width - this.width + this.x;
+        var realy = this.y >= 0 ? this.y : ctx.canvas.height - this.height + this.y;
         
-        ctx.drawImage(img, this.x, this.y, this.width, this.height);
+        ctx.drawImage(img, realx, realy, this.width, this.height);
 
         // Draw text
         var fontsize = 32;
@@ -367,7 +372,7 @@ class Button {
         ctx.font = fontsize.toString() + "px Courier New";
         var txtw = this.txt.length * fontsize * 0.6;
         var txth = fontsize * 0.6;
-        ctx.fillText(this.txt, this.x + this.width/2 - txtw/2, this.y + this.height/2 + txth/2);
+        ctx.fillText(this.txt, realx + this.width/2 - txtw/2, realy + this.height/2 + txth/2);
     }
 }
 
@@ -408,19 +413,20 @@ class MainMenu {
         new Button(600, 200, 80, 80, "o6", play_lvl_fn(oldlevel6)),
         
         // Level editor
-        new Button(100, 800, 1000, 80, "Level Editor", function() {
+        new Button(100, -100, 1000, 80, "Level Editor", function() {
             StateHandler.state = "lvledit";
         }),
 
         // Log In?
-        new Button(1200, 800, 80, 200, "setname", ()=>{})
+        new Button(1200, -100, 200, 80, "setname", ()=>{
+            DBHandler.logged_in_username = window.prompt("Enter a username");
+        })
     ];
 
     static animframe() {
         // TODO: this is super hacky, please fix.
         // The problem is that dynamically changing menu layout is gonna need a lot more
         // consideration of the screen state and how to "position" the buttons dynamically
-        MainMenu.buttons[13].y = ctx.canvas.height-180;
 
         MainMenu.draw();
         

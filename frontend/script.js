@@ -503,7 +503,7 @@ class DBHandler {
             return;
 
         // Unnamed levels shouldnt record scores
-        if (!lvl_id || lvl_id == "")
+        if (!lvl_id || lvl_id == "unnamed_level")
             return
         
         // If the time is worse, don't even send it to the server

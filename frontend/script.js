@@ -419,6 +419,8 @@ class MainMenu {
         new Button(1200, -100, 200, 80, "setname", ()=>{
             if (!DBHandler.logged_in_username)
                 DBHandler.logged_in_username = window.prompt("Enter a username");
+            InputHandler.click = false;
+            InputHandler.start_click_coords = null;
         })
     ];
 
@@ -1182,7 +1184,7 @@ document.addEventListener("mouseup", function(e) {
         InputHandler.click = false;
         InputHandler.start_click_coords = null;
     }
-}); 
+});
 
 function resize_window() {
     ctx.canvas.width  = window.innerWidth;

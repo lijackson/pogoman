@@ -406,11 +406,14 @@ class MainMenu {
         new Button(400, 200, 80, 80, "o4", play_lvl_fn(oldlevel4)),
         new Button(500, 200, 80, 80, "o5", play_lvl_fn(oldlevel5)),
         new Button(600, 200, 80, 80, "o6", play_lvl_fn(oldlevel6)),
-    
+        
         // Level editor
         new Button(100, 800, 1000, 80, "Level Editor", function() {
             StateHandler.state = "lvledit";
-        })
+        }),
+
+        // Log In?
+        new Button(1200, 800, 80, 200, "setname", ()=>{})
     ];
 
     static animframe() {
@@ -865,15 +868,11 @@ class PauseScreen {
                 DBHandler.post_to_leaderboard(Leaderboard.level, Game.clock)
                 DBHandler.update_leaderboard(Leaderboard.level);
             }
-            const LB_width = 400;
+            const LB_width = 600;
             const LB_height = 670;
             Leaderboard.draw(   ctx.canvas.width/2 - LB_width/2, ctx.canvas.height/2 - LB_height/2,
                                 LB_width, LB_height);
         }
-        const LB_width = 600;
-        const LB_height = 670;
-        Leaderboard.draw(   ctx.canvas.width/2 - LB_width/2, ctx.canvas.height/2 - LB_height/2,
-                            LB_width, LB_height);
 
         StateHandler.handle();
     }

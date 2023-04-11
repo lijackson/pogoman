@@ -599,7 +599,9 @@ class StateHandler {
             "bonk": PauseScreen.animframe,
             "worldborder": PauseScreen.animframe,
             "win": PauseScreen.animframe,
+            "pause": PauseScreen.animframe,
             "lvledit": LevelEditor.animframe,
+            "replayTEST": ReplayEngine.animframe,
         };
         if (StateHandler.state != "lvledit")
             LevelEditor.is_open = false;
@@ -928,7 +930,8 @@ class Game {
         var now = get_time();
         // Run physics to catch up to realtime
         while (Game.phystime < now && StateHandler.state == "game") {
-            Game.phystick(InputHandler.left, InputHandler.right);
+            var next_state = Game.phystick(InputHandler.left, InputHandler.right);
+            StateHandler.state = next_state;
             numticks++;
         }
         // Check if we were lagging by over 3x expected frames
@@ -945,9 +948,10 @@ class Game {
     }
 
     static log_replay(l, r) {
-        var type =  !l &&  r ? 'a' :
-                     l && !r ? 'b' :
-                               'c' ;
+        var type =   l && !r ? 'a' :
+                    !l &&  r ? 'b' :
+                    !l && !r ? 'c' :
+                               'd' ;
         if (Game.replay.length == 0 || Game.replay[Game.replay.length-1][0] != type)
             Game.replay.push([type, 0]);
         Game.replay[Game.replay.length-1][1]++;
@@ -963,31 +967,29 @@ class Game {
         let head_pt = Game.pogo_dude.get_head_point();
         
         if (Game.pogo_dude.y > Game.level.worldborder) {
-            StateHandler.state = "worldborder";
+            return "worldborder";
         }
 
         for (let id in Game.level.obstacles) {
             if (Game.level.obstacles[id].point_intersects(spring_pt.x, spring_pt.y)) {
                 if (Game.level.obstacles[id].type == "win") {
-                    StateHandler.state = "win";
-                    break;
+                    return "win";
                 } else {
                     collision = true;
                 }
             }
             if (Game.level.obstacles[id].point_intersects(head_pt.x, head_pt.y)) {
                 if (Game.level.obstacles[id].type == "win") {
-                    StateHandler.state = "win";
+                    return "win";
                 } else {
-                    StateHandler.state = "bonk";
+                    return "bonk";
                 }
-                break;
             }
         }
 
         Game.pogo_dude.update(inp_left, inp_right, collision);
-
         Game.offset = {x: Game.pogo_dude.x - canvas.width / 2, y: Game.pogo_dude.y - canvas.height / 2};
+        return "game";
     }
 
     static draw_game_state() {
@@ -1008,6 +1010,66 @@ class Game {
     static draw() {
         Game.draw_game_state();
         Game.draw_clock();
+    }
+}
+
+class ReplayEngine {
+    static curr_replay = [];
+    static running = false;
+    static curr_inpset = 0;
+    static curr_tick_in_inpset = 0;
+    
+    static animframe() {
+        if (StateHandler.just_changed_state) {
+            ReplayEngine.curr_inpset = 0;
+            ReplayEngine.curr_tick_in_inpset = 0;
+            Game.restart();
+        }
+        var now = get_time();
+        // Run physics to catch up to realtime
+        while (Game.phystime < now) {
+            if (ReplayEngine.curr_inpset >= ReplayEngine.curr_replay.length) {
+                StateHandler.state = "pause";
+                break;
+            }
+                
+            var inp = ReplayEngine.curr_replay[ReplayEngine.curr_inpset];
+            var l = inp[0] == 'a';
+            var r = inp[0] == 'b';
+            if (inp[0] == 'd') {
+                l = true;
+                r = true;
+            }
+
+            var curr_state = Game.phystick(l, r);
+            if (curr_state != "game")
+                return [curr_state, Game.clock];
+            
+            ReplayEngine.curr_tick_in_inpset++;
+            if (ReplayEngine.curr_tick_in_inpset >= inp[1]) {
+                ReplayEngine.curr_inpset++;
+                ReplayEngine.curr_tick_in_inpset = 0;
+            }
+        }
+
+        Game.draw();
+        // Loop
+        StateHandler.handle();
+    }
+
+    static simulate_replay(replay) {
+        Game.restart();
+        for (var inps in replay) {
+            for (var i = 0; i < replay[inps][1]; i++) {
+                console.log(Game.pogo_dude.x);
+                var l = replay[inps][0] == 'a' || replay[inps][0] == 'd';
+                var r = replay[inps][0] == 'b' || replay[inps][0] == 'd';
+                var curr_state = Game.phystick(l, r);
+                if (curr_state != "game")
+                    return [curr_state, Game.clock];
+            }
+        }
+        return ["unfinished", Game.clock];
     }
 }
 

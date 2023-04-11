@@ -46,7 +46,7 @@ class PogoDude {
         this.in_air = false;
     }
 
-    update(hit_ground) {
+    update(inp_left, inp_right, hit_ground) {
 
         let momentum = JUMP_STRENGTH;
 
@@ -58,8 +58,6 @@ class PogoDude {
                 this.y -= this.dy / 2;
                 this.x -= this.dx / 2;
                 momentum = Math.max(JUMP_STRENGTH, Math.sqrt(this.dy ** 2 + this.dx ** 2) * 0.95);
-                if (InputHandler.down)
-                    momentum *= 0.85;
             }
 
             this.in_air = false;
@@ -91,10 +89,10 @@ class PogoDude {
         }
         
         // lean input
-        if (InputHandler.left)
+        if (inp_left)
             this.drot -= (0.2 + 0.1 * (this.drot>0)) * FMOD;
         
-        if (InputHandler.right)
+        if (inp_right)
             this.drot += (0.2 + 0.1 * (this.drot<0)) * FMOD;
         
 
@@ -519,7 +517,8 @@ class DBHandler {
             body: JSON.stringify({
                 level_id: lvl_id,
                 username: DBHandler.logged_in_username,
-                time: time
+                time: time,
+                replay: Game.replay
             })
         });
 
@@ -904,6 +903,7 @@ class Game {
     static phystime = 0;
     static clock = 0;
     static worldborder = 0;
+    static replay = [];
 
     static load_level(lvl) {
         if (!lvl)
@@ -917,7 +917,8 @@ class Game {
             Game.pogo_dude.reset(Game.level.player_start[0],
                                  Game.level.player_start[1]);
         }
-        
+
+        Game.replay = [];
         Game.phystime = get_time();
         Game.clock = 0;
     }
@@ -927,7 +928,7 @@ class Game {
         var now = get_time();
         // Run physics to catch up to realtime
         while (Game.phystime < now && StateHandler.state == "game") {
-            Game.phystick();
+            Game.phystick(InputHandler.left, InputHandler.right);
             numticks++;
         }
         // Check if we were lagging by over 3x expected frames
@@ -935,14 +936,27 @@ class Game {
             console.log(numticks, " ticks (calculated in ", get_time() - now , "ms)\nThe browser likely implements the clock display very poorly (Firefox is known to have this issue).\nThis will cause jittery in animation.");
     
         Game.draw();
+
+        if (InputHandler.space)
+            Game.restart();
         
         // Loop
         StateHandler.handle();
     }
 
-    static phystick() {
+    static log_replay(l, r) {
+        var type =  !l &&  r ? 'a' :
+                     l && !r ? 'b' :
+                               'c' ;
+        if (Game.replay.length == 0 || Game.replay[Game.replay.length-1][0] != type)
+            Game.replay.push([type, 0]);
+        Game.replay[Game.replay.length-1][1]++;
+    }
+
+    static phystick(inp_left, inp_right) {
         Game.clock += MSPT;
         Game.phystime += MSPT;
+        Game.log_replay(inp_left, inp_right)
         let collision = false;
 
         let spring_pt = Game.pogo_dude.get_base_point();
@@ -971,7 +985,7 @@ class Game {
             }
         }
 
-        Game.pogo_dude.update(collision);
+        Game.pogo_dude.update(inp_left, inp_right, collision);
 
         Game.offset = {x: Game.pogo_dude.x - canvas.width / 2, y: Game.pogo_dude.y - canvas.height / 2};
     }

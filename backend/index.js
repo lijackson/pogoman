@@ -26,13 +26,13 @@ async function getRecord(lvl_id, username) {
     return await result;
 }
 
-async function updateRecord(lvl_id, username, new_time) {
-    if (!lvl_id || !username || !new_time) {
-        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}]`);
+async function updateRecord(lvl_id, username, new_time, replay) {
+    if (!lvl_id || !username || !new_time || !replay) {
+        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}], replay: ${replay}]`);
         return false;
     }
     
-    var record = {level_id: lvl_id, username: username, time: new_time};
+    var record = {level_id: lvl_id, username: username, time: new_time, replay:replay};
     const updated_record = await app.locals.db.collection("scores")
         .updateOne({level_id: lvl_id, username: username}, {$set: record}, {upsert: true});
     
@@ -66,8 +66,8 @@ app.post('/api/records/submit', jsonParser, async (req, res) => {
     console.log(record);
     try {
         const curr_best = await getRecord(record.level_id, record.username);
-        if (!curr_best || !curr_best.time || record.time < curr_best.time) {
-            var success = await updateRecord(record.level_id, record.username, record.time);
+        if (!curr_best || !curr_best.time || record.time <= curr_best.time) {
+            var success = await updateRecord(record.level_id, record.username, record.time, record.replay);
             if (!success)
                 return res.status(400).json({ ok: false, message: "Missing record information" });
         }

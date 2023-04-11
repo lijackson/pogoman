@@ -419,7 +419,8 @@ class MainMenu {
 
         // Log In?
         new Button(1200, -100, 200, 80, "setname", ()=>{
-            DBHandler.logged_in_username = window.prompt("Enter a username");
+            if (!DBHandler.logged_in_username)
+                DBHandler.logged_in_username = window.prompt("Enter a username");
         })
     ];
 
@@ -500,6 +501,10 @@ class DBHandler {
         // If the player is not logged in, don't send anything to the server
         if (DBHandler.logged_in_username == null)
             return;
+
+        // Unnamed levels shouldnt record scores
+        if (!lvl_id || lvl_id == "")
+            return
         
         // If the time is worse, don't even send it to the server
         if (lvl_id in DBHandler.player_bests && time > DBHandler.player_bests[lvl_id]["time"])

@@ -455,7 +455,17 @@ class Timer {
 }
 
 class DBHandler {
-    static leaderboards = {};
+    static leaderboards = {"test_display": [{"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
+                                            {"username": "BoB", "time": 4240, "level_id": "test_display"},
+                                            {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
+                                            {"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
+                                            {"username": "BoB", "time": 4240, "level_id": "test_display"},
+                                            {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
+                                            {"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
+                                            {"username": "BoB", "time": 4240, "level_id": "test_display"},
+                                            {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
+                                            {"username": "end", "time": 9390, "level_id": "test_display"}]};
+    static player_bests = {};
     static logged_in_username = null;
     static waiting_for_updates = 0;
 
@@ -467,15 +477,24 @@ class DBHandler {
                 DBHandler.leaderboards[lvl_id] = records;
                 console.log(DBHandler.leaderboards[lvl_id]);
                 DBHandler.leaderboards[lvl_id].sort((a, b)=>{return a.time - b.time})
+                for (var rec in DBHandler.leaderboards[lvl_id]) {
+                    if (rec["username"] == DBHandler.logged_in_username) {
+                        DBHandler.player_best[lvl_id] = rec["time"];
+                        break;
+                    }
+                }
                 DBHandler.waiting_for_updates--;
             });
     }
 
     static async post_to_leaderboard(lvl_id, time, replay={}) {
+        // If the player is not logged in, don't send anything to the server
         if (DBHandler.logged_in_username == null)
             return;
         
-        // await DBHandler.update_leaderboard(lvl_id);
+        // If the time is worse, don't even send it to the server
+        if (lvl_id in DBHandler.player_bests && time > DBHandler.player_bests[lvl_id]["time"])
+            return;
         
         var res = await fetch(`/api/records/submit`, {
             method: 'POST',
@@ -501,15 +520,32 @@ class Leaderboard {
     static level = "level1"
 
     static draw(x, y, width, height) {
-        const border = 10;
-        const rh = 40; // Record height
+        // Background
         ctx.fillStyle = "#444444";
+        ctx.globalAlpha = 0.8;
         ctx.fillRect(x, y, width, height);
+        ctx.globalAlpha = 1.0;
+        // Border for background
+        ctx.beginPath();
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(x, y, width, height);
+        
+        const wide_padding = 20; // Padding records to sides of leaderboard
+        const rh = 45; // Record height
+        const header_space = 110;
+        ctx.fillStyle = "white";
+        ctx.font = `48px Helvetica`;
+        var header_text = "LEADERBOARD";
+        if (DBHandler.waiting_for_updates > 0)
+            header_text += "...";
+
+        ctx.fillText("LEADERBOARD", x+(width-360)/2, y+75);
         if (!(Leaderboard.level in DBHandler.leaderboards)) 
             DBHandler.leaderboards[Leaderboard.level] = [];
         for (var i = 0; i < Math.min(10, DBHandler.leaderboards[Leaderboard.level].length); i++) {
             var rec = DBHandler.leaderboards[Leaderboard.level][i];
-            this.draw_record(x+border, y+(rh+border)*i+border, width-border*2, rh, 
+            this.draw_record(x+wide_padding, y+(rh+10)*i+header_space, width-wide_padding*2, rh, 
                              rec["username"], rec["time"]/1000);
         }
     }
@@ -522,8 +558,8 @@ class Leaderboard {
         const record_fontsize = 24;
         ctx.fillStyle = "white";
         ctx.font = `${record_fontsize}px Helvetica`;
-        ctx.fillText(name, x+10, y+record_fontsize+8);
-        ctx.fillText(time_txt, x+width-10-record_fontsize/2*time_txt.length, y+record_fontsize+10);
+        ctx.fillText(name, x+10, y+record_fontsize+7);
+        ctx.fillText(time_txt, x+width-10-record_fontsize/2*time_txt.length, y+record_fontsize+7);
     }
 }
 
@@ -653,7 +689,6 @@ class LevelEditor {
     static animframe() {
         if (!LevelEditor.is_open)
             LevelEditor.on_open();
-        
 
         var rel_x = InputHandler.mouseX + LevelEditor.offset.x;
         var rel_y = InputHandler.mouseY + LevelEditor.offset.y;
@@ -775,6 +810,7 @@ class LevelEditor {
         
         ctx.beginPath();
         ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
         ctx.rect(this.selection_window.x - LevelEditor.offset.x, this.selection_window.y - LevelEditor.offset.y,
                     this.selection_window.width, this.selection_window.height);
         ctx.stroke();
@@ -829,8 +865,15 @@ class PauseScreen {
                 DBHandler.post_to_leaderboard(Leaderboard.level, Game.clock)
                 DBHandler.update_leaderboard(Leaderboard.level);
             }
-            Leaderboard.draw(50,50,400,600);
+            const LB_width = 400;
+            const LB_height = 670;
+            Leaderboard.draw(   ctx.canvas.width/2 - LB_width/2, ctx.canvas.height/2 - LB_height/2,
+                                LB_width, LB_height);
         }
+        const LB_width = 600;
+        const LB_height = 670;
+        Leaderboard.draw(   ctx.canvas.width/2 - LB_width/2, ctx.canvas.height/2 - LB_height/2,
+                            LB_width, LB_height);
 
         StateHandler.handle();
     }

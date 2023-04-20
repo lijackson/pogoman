@@ -26,9 +26,19 @@ async function getRecord(lvl_id, username) {
     return await result;
 }
 
+function validate_replay(level, replay) { // TODO: use the ReplayEngine to actually validate runs
+    if (!level || !replay || replay == [])
+        return false;
+}
+
 async function updateRecord(lvl_id, username, new_time, replay) {
     if (!lvl_id || !username || !new_time || !replay) {
         console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}], replay: ${replay}]`);
+        return false;
+    }
+
+    if (!validate_replay([], replay)) { // TODO: switch this to actually getting the level
+        console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
         return false;
     }
     

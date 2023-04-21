@@ -386,10 +386,10 @@ var level7 = new Level(level7json);
 // These are the old levels, they will be removed at some point
 var oldlevel1 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,30],[500,250,50,50],[800,230,50,70],[1100,210,50,90]],"win_blocks":[[1200,300,200,30]]});
 var oldlevel2 = new Level({"player_start":[360,240],"obstacles":[[200,300,300,30],[400,100,100,200],[50,0,100,300],[500,100,300,20],[500,100,300,20],[800,50,100,250],],"win_blocks":[[800,0,100,50,"win"]]});
-var oldlevel3 = new Level({"player_start":[360,240],"obstacles":[[200,300,300,30],[200,-300,30,600],[470,-300,30,600],],"win_blocks":[[200,-330,300,30]]});
+var oldlevel3 = new Level({"name":"old3","player_start":[360,240],"obstacles":[[200,300,300,30],[200,-300,30,600],[470,-300,30,600],],"win_blocks":[[200,-330,300,30]]});
 var oldlevel4 = new Level({"player_start":[360,240],"obstacles":[[200,300,500,30],[700,-100,30,430],[300,-100,200,200]],"win_blocks":[[300,-130,200,30]]});
 var oldlevel5 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,30],[500,-500,400,550],[1200,-300,30,630]],"win_blocks":[[-30,-30,60,60,"win"]]});
-var oldlevel6 = new Level({"player_start":[0,0],"obstacles":[[-50,100,300,30],[400,-200,100,500],[-50,120,100,400],[400,500,400,30],[1100,0,100,500]],"win_blocks":[[1000,0,60,60,"win"]]});
+var oldlevel6 = new Level({"name":"old6","player_start":[0,0],"obstacles":[[-50,100,300,30],[400,-200,100,500],[-50,120,100,400],[400,500,400,30],[1100,0,100,500]],"win_blocks":[[1000,0,60,60,"win"]]});
 
 class MainMenu {
     static buttons = [

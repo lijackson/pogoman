@@ -467,16 +467,7 @@ class Timer {
 }
 
 class DBHandler {
-    static leaderboards = {"test_display": [{"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
-                                            {"username": "BoB", "time": 4240, "level_id": "test_display"},
-                                            {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
-                                            {"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
-                                            {"username": "BoB", "time": 4240, "level_id": "test_display"},
-                                            {"username": "aydinsucks", "time": 9390, "level_id": "test_display"},
-                                            {"username": "funkymonkey", "time": 3935, "level_id": "test_display"},
-                                            {"username": "BoB", "time": 4240, "level_id": "test_display"},
-                                            {"username": "aydinsucks", "time": 93190, "level_id": "test_display"},
-                                            {"username": "end", "time": 9139390, "level_id": "test_display"}]};
+    static leaderboards = {};
     static player_bests = {};
     static logged_in_username = null;
     static waiting_for_updates = 0;

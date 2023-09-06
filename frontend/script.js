@@ -443,9 +443,10 @@ class MainMenu {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // TODO: remove after testing
+        ctx.fillStyle = "#000";
         ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 300);
 
-        // Draw Buttons
+        // Draw Buttons3
         for (let i = 0; i < MainMenu.buttons.length; i++) {
             MainMenu.buttons[i].exist();
             MainMenu.buttons[i].draw();

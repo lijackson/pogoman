@@ -533,20 +533,25 @@ class Leaderboard {
     static level = "level1"
 
     static draw(x, y, width, height) {
+        // dims
+        const wide_padding = 20; // Padding records to sides of leaderboard
+        const rh = 45; // Record height
+        const header_space = 110;
+        const beveling = 5;
+
         // Background
         ctx.fillStyle = "#444444";
         ctx.globalAlpha = 0.8;
-        ctx.fillRect(x, y, width, height);
+        ctx.roundRect(x, y, width, height, [beveling]);
+        ctx.fill();
         ctx.globalAlpha = 1.0;
         // Border for background
         ctx.beginPath();
         ctx.lineWidth = 5;
         ctx.strokeStyle = "black";
-        ctx.strokeRect(x, y, width, height);
+        ctx.roundRect(x, y, width, height, [beveling]);
+        ctx.stroke();
         
-        const wide_padding = 20; // Padding records to sides of leaderboard
-        const rh = 45; // Record height
-        const header_space = 110;
         ctx.fillStyle = "white";
         ctx.font = `48px Helvetica`;
         var header_text = "LEADERBOARD";

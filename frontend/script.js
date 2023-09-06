@@ -324,8 +324,7 @@ class Menu {
 
 class Button {
     constructor(x, y, w, h, txt, on_click = function(){}) {
-        this.color = "#000000"
-
+        this.color = "#000000";
         this.hover_color = "#333333";
 
         this.x = x;
@@ -362,7 +361,9 @@ class Button {
         
         // Draw 
         ctx.fillStyle = bg;
+        ctx.beginPath()
         ctx.roundRect(realx, realy, this.width, this.height, [10]);
+        ctx.fill();
 
         // Draw text
         var fontsize = 32;

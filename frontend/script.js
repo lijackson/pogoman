@@ -324,11 +324,9 @@ class Menu {
 
 class Button {
     constructor(x, y, w, h, txt, on_click = function(){}) {
-        this.img = new Image(8, 8);
-        this.img.src = "assets/obstacle.png";
+        this.color = "#000000"
 
-        this.hover_img = new Image(8, 8);
-        this.hover_img.src = "assets/btn_hover.png";
+        this.hover_color = "#333333";
 
         this.x = x;
         this.y = y;
@@ -355,14 +353,16 @@ class Button {
 
     draw() {
         // Set background
-        var img = this.img;
+        var bg = this.color;
         if (this.hovered)
-            img = this.hover_img;
+            bg = this.hover_color;
 
         var realx = this.x >= 0 ? this.x : ctx.canvas.width - this.width + this.x;
         var realy = this.y >= 0 ? this.y : ctx.canvas.height - this.height + this.y;
         
-        ctx.drawImage(img, realx, realy, this.width, this.height);
+        // Draw 
+        ctx.fillStyle = bg;
+        ctx.roundRect(realx, realy, this.width, this.height, [10]);
 
         // Draw text
         var fontsize = 32;
@@ -444,9 +444,9 @@ class MainMenu {
 
         // TODO: remove after testing
         ctx.fillStyle = "#000";
-        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 300);
+        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 400);
 
-        // Draw Buttons3
+        // Draw Buttons
         for (let i = 0; i < MainMenu.buttons.length; i++) {
             MainMenu.buttons[i].exist();
             MainMenu.buttons[i].draw();

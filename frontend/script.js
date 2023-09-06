@@ -442,6 +442,9 @@ class MainMenu {
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        // TODO: remove after testing
+        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 300);
+
         // Draw Buttons
         for (let i = 0; i < MainMenu.buttons.length; i++) {
             MainMenu.buttons[i].exist();
@@ -548,7 +551,7 @@ class Leaderboard {
         if (DBHandler.waiting_for_updates > 0)
             header_text += "...";
 
-        ctx.fillText("LEADERBOARD", x+(width-360)/2, y+75);
+        ctx.fillText(header_text, x+(width-360)/2, y+75);
         if (!(Leaderboard.level in DBHandler.leaderboards)) 
             DBHandler.leaderboards[Leaderboard.level] = [];
         for (var i = 0; i < Math.min(10, DBHandler.leaderboards[Leaderboard.level].length); i++) {

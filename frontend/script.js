@@ -13,6 +13,11 @@ const FMOD = MSPT / 15;
 const STICK_HEIGHT = 24;
 const JUMP_STRENGTH = 7;
 
+Number.prototype.mod = function (n) {
+    "use strict";
+    return ((this % n) + n) % n;
+};
+
 // Color map for obstacle types: "<type>": [<regular color>, <highlighted color>]
 const OBST_COLORS = {
     "obstacle": ["#000000", "#333333"],
@@ -393,7 +398,7 @@ var oldlevel4 = new Level({"player_start":[360,240],"obstacles":[[200,300,500,30
 var oldlevel5 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,30],[500,-500,400,550],[1200,-300,30,630]],"win_blocks":[[-30,-30,60,60,"win"]]});
 var oldlevel6 = new Level({"name":"old6","player_start":[0,0],"obstacles":[[-50,100,300,30],[400,-200,100,500],[-50,120,100,400],[400,500,400,30],[1100,0,100,500]],"win_blocks":[[1000,0,60,60,"win"]]});
 
-class MainMenu {
+class LevelSelectMenu {
     static buttons = [
         // Levels
         new Button(100, 100, 80, 80, "1", play_lvl_fn(level1)),
@@ -418,7 +423,7 @@ class MainMenu {
             StateHandler.state = "lvledit";
         }),
 
-        // Log In?
+        // Log In? TODO: ok fr this is not what logging in means
         new Button(1200, -100, 200, 80, "setname", ()=>{
             if (!DBHandler.logged_in_username)
                 DBHandler.logged_in_username = window.prompt("Enter a username");
@@ -432,7 +437,7 @@ class MainMenu {
         // The problem is that dynamically changing menu layout is gonna need a lot more
         // consideration of the screen state and how to "position" the buttons dynamically
 
-        MainMenu.draw();
+        LevelSelectMenu.draw();
         
         StateHandler.handle();
     }
@@ -443,15 +448,19 @@ class MainMenu {
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // TODO: remove after testing
-        ctx.fillStyle = "#000";
-        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 400);
+        // Draw clouds
+        draw_clouds();
 
         // Draw Buttons
-        for (let i = 0; i < MainMenu.buttons.length; i++) {
-            MainMenu.buttons[i].exist();
-            MainMenu.buttons[i].draw();
+        for (let i = 0; i < LevelSelectMenu.buttons.length; i++) {
+            LevelSelectMenu.buttons[i].exist();
+            LevelSelectMenu.buttons[i].draw();
         }
+
+        // TODO: remove after testing
+        ctx.fillStyle = "#000";
+        ctx.font = "32px Courier New";
+        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 400);
     }
 }
 
@@ -583,14 +592,14 @@ class Leaderboard {
 
 class StateHandler {
     static last_state = "none"
-    static state = "mainmenu";
+    static state = "LevelSelectMenu";
     static just_changed_state = true;
     static handle() {
 
         // The ESC key should always return to main menu
         // It is the only input that should override the described input handling of the animation frames
         if (InputHandler.esc)
-            StateHandler.state = "mainmenu";
+            StateHandler.state = "LevelSelectMenu";
 
         StateHandler.just_changed_state = false;
         if (StateHandler.state != StateHandler.last_state) {
@@ -599,7 +608,7 @@ class StateHandler {
         }
 
         const next_frame_from_state = {
-            "mainmenu": MainMenu.animframe,
+            "LevelSelectMenu": LevelSelectMenu.animframe,
             "game": Game.animframe,
             "bonk": PauseScreen.animframe,
             "worldborder": PauseScreen.animframe,
@@ -810,6 +819,8 @@ class LevelEditor {
                 // When click is released and there is a selection window
                 else if (just.unclicked && LevelEditor.selection_window) {
                     LevelEditor.selection_window = null;
+                    if (LevelEditor.selected_objs.length > 0)
+                        LevelEditor.mode = "drag";
                 }
                 break;
             }
@@ -906,6 +917,7 @@ class PauseScreen {
 class Game {
     static pogo_dude = new PogoDude(0, 0);
     static offset = {x: -canvas.width / 2, y: -canvas.height / 2};
+    static clouds = [];
     static level = new Level();
     static phystime = 0;
     static clock = 0;
@@ -998,9 +1010,11 @@ class Game {
     }
 
     static draw_game_state() {
+        // Background
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#55BBFF";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
+        draw_clouds();
 
         for (let id in Game.level.obstacles) {
             Game.level.obstacles[id].draw(Game.offset);
@@ -1104,6 +1118,23 @@ function get_time() {
     return t;
 }
 
+cloud_img = new Image();
+cloud_img.src = "assets/cloud.png"
+const cloudw = 1200;
+const cloudh = 400;
+const clouddist = 1/16;
+function draw_clouds() {
+    origx = (-get_time()/100 - Game.offset.x*(1+clouddist)).mod(cloudw) - cloudw;
+    origy = (-Game.offset.y*(1+clouddist)).mod(cloudh) - cloudh;
+    shift_flag = Math.ceil(Game.offset.y*(1+clouddist) / cloudh).mod(2);
+    for (let cloudy = origy; cloudy < canvas.height; cloudy += cloudh) {
+        for (let cloudx = origx - shift_flag*cloudw/2; cloudx < canvas.width; cloudx += cloudw) {
+            ctx.drawImage(cloud_img, cloudx, cloudy);
+        }
+        shift_flag = 1 - shift_flag;
+    }
+};
+
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {
         case 37:
@@ -1180,6 +1211,7 @@ document.addEventListener("mousedown", function(e) {
         InputHandler.click = true;
     }
 }); 
+
 document.addEventListener("mouseup", function(e) {
     InputHandler.mouseX = e.clientX;
     InputHandler.mouseY = e.clientY;

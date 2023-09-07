@@ -1118,18 +1118,28 @@ function get_time() {
     return t;
 }
 
-cloud_img = new Image();
+var cloud_img = new Image();
 cloud_img.src = "assets/cloud.png"
-const cloudw = 1200;
+const cloudw = 1100;
 const cloudh = 400;
 const clouddist = 1/16;
+const jitter_allowance = 3/4;
 function draw_clouds() {
-    origx = (-get_time()/100 - Game.offset.x*(1+clouddist)).mod(cloudw) - cloudw;
-    origy = (-Game.offset.y*(1+clouddist)).mod(cloudh) - cloudh;
+    origin_x = (-get_time()/100 - Game.offset.x*(1+clouddist)).mod(cloudw) - cloudw;
+    origin_y = (-Game.offset.y*(1+clouddist)).mod(cloudh) - cloudh;
     shift_flag = Math.ceil(Game.offset.y*(1+clouddist) / cloudh).mod(2);
-    for (let cloudy = origy; cloudy < canvas.height; cloudy += cloudh) {
-        for (let cloudx = origx - shift_flag*cloudw/2; cloudx < canvas.width; cloudx += cloudw) {
-            ctx.drawImage(cloud_img, cloudx, cloudy);
+    for (let cy = 0; origin_y + cy*cloudh < canvas.height + cloudh; cy++) {
+        for (let cx = 0; origin_x - shift_flag*cloudw/2 + cx*cloudw < canvas.width + cloudw; cx++) {
+            cidy = Math.ceil(Game.offset.y*(1+clouddist) / cloudh) + cy;
+            cidx = Math.ceil((get_time()/100 + Game.offset.x*(1+clouddist)) / cloudw) + cx;
+
+            jitterx = (173*cidx + 93*cidy).mod(jitter_allowance*cloudw) - jitter_allowance*cloudw/2;
+            jittery = (173*cidx + 93*cidy).mod(jitter_allowance*cloudh) - jitter_allowance*cloudh/2;
+
+            x = origin_x + cx*cloudw + jitterx;
+            y = origin_y + cy*cloudh + jittery;
+
+            ctx.drawImage(cloud_img, x, y);
         }
         shift_flag = 1 - shift_flag;
     }

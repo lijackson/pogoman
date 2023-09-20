@@ -1120,18 +1120,18 @@ function get_time() {
 
 var cloud_img = new Image();
 cloud_img.src = "assets/cloud.png"
-const cloudw = 1100;
-const cloudh = 400;
-const clouddist = 1/16;
-const jitter_allowance = 3/4;
 function draw_clouds() {
-    origin_x = (-get_time()/100 - Game.offset.x*(1+clouddist)).mod(cloudw) - cloudw;
-    origin_y = (-Game.offset.y*(1+clouddist)).mod(cloudh) - cloudh;
-    shift_flag = Math.ceil(Game.offset.y*(1+clouddist) / cloudh).mod(2);
+    const cloudw = 1100;
+    const cloudh = 400;
+    const clouddist = 1/2;
+    const jitter_allowance = 3/4;
+    origin_x = (-get_time()/100 - Game.offset.x*clouddist).mod(cloudw) - cloudw;
+    origin_y = (-Game.offset.y*clouddist).mod(cloudh) - cloudh;
+    shift_flag = Math.ceil(Game.offset.y*clouddist / cloudh).mod(2);
     for (let cy = 0; origin_y + cy*cloudh < canvas.height + cloudh; cy++) {
         for (let cx = 0; origin_x - shift_flag*cloudw/2 + cx*cloudw < canvas.width + cloudw; cx++) {
-            cidy = Math.ceil(Game.offset.y*(1+clouddist) / cloudh) + cy;
-            cidx = Math.ceil((get_time()/100 + Game.offset.x*(1+clouddist)) / cloudw) + cx;
+            cidy = Math.ceil(Game.offset.y*clouddist / cloudh) + cy;
+            cidx = Math.ceil((get_time()/100 + Game.offset.x*clouddist) / cloudw) + cx;
 
             jitterx = (173*cidx + 93*cidy).mod(jitter_allowance*cloudw) - jitter_allowance*cloudw/2;
             jittery = (173*cidx + 93*cidy).mod(jitter_allowance*cloudh) - jitter_allowance*cloudh/2;

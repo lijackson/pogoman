@@ -8,7 +8,31 @@
 		<link rel="stylesheet" href="style.css">
 	</head>
 	<body>
+		<div id="sign_in_menu">
+			<div id="sign_in_menu_title">
+				<header>SIGN IN</header>
+			</div>
+			<div id="google_sign_in_btn">
+				<div id="g_id_onload"
+					data-client_id="410032099071-6f6pthqhls396teolokorbraq0843nkc.apps.googleusercontent.com"
+					data-context="signin"
+					data-ux_mode="popup"
+					data-callback="logged_in"
+					data-itp_support="true">
+				</div>
+
+				<div class="g_id_signin"
+					data-type="standard"
+					data-shape="rectangular"
+					data-theme="outline"
+					data-text="signin_with"
+					data-size="large"
+					data-logo_alignment="left">
+				</div>
+			</div>
+		</div>
 		<canvas id="paper"></canvas>
+		<script src="https://accounts.google.com/gsi/client" async></script>
 		<script type="text/javascript" src="levels.js"></script>
 		<script type="text/javascript" src="script.js"></script>
 	</body>

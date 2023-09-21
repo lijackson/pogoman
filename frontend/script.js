@@ -419,14 +419,20 @@ class LevelSelectMenu {
         new Button(600, 200, 80, 80, "o6", play_lvl_fn(oldlevel6)),
         
         // Level editor
-        new Button(100, -100, 1000, 80, "Level Editor", function() {
+        new Button(100, -100, 600, 80, "Level Editor", function() {
             StateHandler.state = "lvledit";
         }),
 
-        // Log In? TODO: ok fr this is not what logging in means
-        new Button(1200, -100, 200, 80, "setname", ()=>{
+        // setname? TODO: ok fr this is not what logging in means
+        new Button(720, -100, 200, 80, "setname", ()=>{
             if (!DBHandler.logged_in_username)
                 DBHandler.logged_in_username = window.prompt("Enter a username");
+            InputHandler.click = false;
+            InputHandler.start_click_coords = null;
+        }),
+
+        new Button(940, -100, 200, 80, "log in", ()=>{
+            document.getElementById("sign_in_menu").style.visibility = "visible";
             InputHandler.click = false;
             InputHandler.start_click_coords = null;
         })
@@ -460,7 +466,7 @@ class LevelSelectMenu {
         // TODO: remove after testing
         ctx.fillStyle = "#000";
         ctx.font = "32px Courier New";
-        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it", 100, 400);
+        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it. dont press log in, its broken", 100, 350);
     }
 }
 

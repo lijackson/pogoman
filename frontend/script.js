@@ -1124,6 +1124,10 @@ function get_time() {
     return t;
 }
 
+function logged_in(data) {
+    console.log(data);
+}
+
 var cloud_img = new Image();
 cloud_img.src = "assets/cloud.png"
 function draw_clouds() {

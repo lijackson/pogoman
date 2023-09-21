@@ -1126,6 +1126,7 @@ function get_time() {
 
 function logged_in(data) {
     console.log(data);
+    document.getElementById("sign_in_menu").style.visibility = "visible";
 }
 
 var cloud_img = new Image();

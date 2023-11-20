@@ -49,7 +49,6 @@ async function updateRecord(lvl_id, username, new_time, replay) {
     return updated_record;
 }
 
-
 // Serving
 const app = express();
 const port = 5000;
@@ -88,6 +87,8 @@ app.post('/api/records/submit', jsonParser, async (req, res) => {
     console.log("finished updating record");
     return res.status(200).json({ ok: true });
 });
+
+
 
 // app.listen(port, () => {
 //     console.log(`started server on port ${port}`);

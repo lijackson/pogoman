@@ -351,7 +351,7 @@ class Button {
 
     exist() {
         this.hovered = this.point_intersects(InputHandler.mouseX, InputHandler.mouseY)
-        if (this.hovered && InputHandler.click)
+        if (this.hovered && InputHandler.click == 2)
             this.on_click();
     }
 
@@ -427,13 +427,14 @@ class LevelSelectMenu {
         new Button(720, -100, 200, 80, "setname", ()=>{
             if (!DBHandler.logged_in_username)
                 DBHandler.logged_in_username = window.prompt("Enter a username");
-            InputHandler.click = false;
+            // necessary because the prompt stops the window from listening to inputs ig?
+            InputHandler.click = 0;
             InputHandler.start_click_coords = null;
         }),
 
         new Button(940, -100, 200, 80, "log in", ()=>{
             document.getElementById("sign_in_menu").style.visibility = "visible";
-            InputHandler.click = false;
+            InputHandler.click = 0;
             InputHandler.start_click_coords = null;
         })
     ];
@@ -597,17 +598,33 @@ class Leaderboard {
 }
 
 class StateHandler {
-    static last_state = "none"
+    static backstates = 
+    {
+        "LevelSelectMenu": "LevelSelectMenu",
+        "game": "pause",
+        "bonk": "LevelSelectMenu",
+        "worldborder": "LevelSelectMenu",
+        "win": "LevelSelectMenu",
+        "pause": "game",
+        "lvledit": "LevelSelectMenu",
+        "replay": "pause",
+    };
+    static last_state = "LevelSelectMenu";
     static state = "LevelSelectMenu";
     static just_changed_state = true;
+
+    // this is the everything handler; it delegates the tasks to everything else
     static handle() {
 
         // The ESC key should always return to main menu
         // It is the only input that should override the described input handling of the animation frames
-        if (InputHandler.esc)
-            StateHandler.state = "LevelSelectMenu";
+        if (InputHandler.esc == 2) {
+            StateHandler.just_changed_state = false;
+            StateHandler.state = StateHandler.backstates[StateHandler.state]
+            if (StateHandler.state == "game")
+                Game.phystime = get_time();
+        }
 
-        StateHandler.just_changed_state = false;
         if (StateHandler.state != StateHandler.last_state) {
             StateHandler.last_state = StateHandler.state;
             StateHandler.just_changed_state = true;
@@ -621,11 +638,14 @@ class StateHandler {
             "win": PauseScreen.animframe,
             "pause": PauseScreen.animframe,
             "lvledit": LevelEditor.animframe,
-            "replayTEST": ReplayEngine.animframe,
+            "replay": ReplayEngine.animframe,
         };
         if (StateHandler.state != "lvledit")
             LevelEditor.is_open = false;
         var next_frame = next_frame_from_state[StateHandler.state];
+
+        // input handler should update after first click inputs are processed
+        InputHandler.doUIupd();
 
         window.requestAnimationFrame(next_frame);
     }
@@ -728,6 +748,7 @@ class LevelEditor {
         var rel_x = InputHandler.mouseX + LevelEditor.offset.x;
         var rel_y = InputHandler.mouseY + LevelEditor.offset.y;
 
+        // changed the inputhandler to take care of this: TODO: trim
         var just = {
             clicked: !LevelEditor.last_input.clicked && InputHandler.click,
             unclicked: LevelEditor.last_input.clicked && !InputHandler.click,
@@ -880,7 +901,7 @@ class PauseScreen {
         "bonk" : ["You Bonked your head", "Press Space to try again"],
         "worldborder" : ["You fell out of the world", "Press Space to try again"],
         "win" : ["Yay you made it", "Nice job"],
-        "pause" : ["Game paused", "Press space to resume"]
+        "pause" : ["Game paused", "Press esc to return to the menu"]
     }
 
     static animframe() {
@@ -888,11 +909,12 @@ class PauseScreen {
         Game.draw_clock(true);
 
         var pausetxt = PauseScreen.pause_text_of[StateHandler.state];
-        PauseScreen.draw(pausetxt[0], pausetxt[1]);
+        if (pausetxt)
+            PauseScreen.draw(pausetxt[0], pausetxt[1]);
 
-        if (InputHandler.space) {
-            StateHandler.state = "game";
+        if (InputHandler.space == 2) {
             Game.restart();
+            StateHandler.state = "game";
         }
 
         if (StateHandler.state == "win" && DBHandler.logged_in_username != null) {
@@ -963,7 +985,7 @@ class Game {
     
         Game.draw();
 
-        if (InputHandler.space)
+        if (InputHandler.space == 2 && StateHandler.state != "pause")
             Game.restart();
         
         // Loop
@@ -1040,16 +1062,19 @@ class Game {
 
 class ReplayEngine {
     static curr_replay = [];
-    static running = false;
     static curr_inpset = 0;
     static curr_tick_in_inpset = 0;
+
+    static run_replay(lvl, replay) {
+        ReplayEngine.curr_replay = replay;
+        StateHandler.state = "replay";
+        ReplayEngine.curr_inpset = 0;
+        ReplayEngine.curr_tick_in_inpset = 0;
+        Game.load_level(lvl);
+        Game.restart();
+    }
     
     static animframe() {
-        if (StateHandler.just_changed_state) {
-            ReplayEngine.curr_inpset = 0;
-            ReplayEngine.curr_tick_in_inpset = 0;
-            Game.restart();
-        }
         var now = get_time();
         // Run physics to catch up to realtime
         while (Game.phystime < now) {
@@ -1059,17 +1084,13 @@ class ReplayEngine {
             }
                 
             var inp = ReplayEngine.curr_replay[ReplayEngine.curr_inpset];
-            var l = inp[0] == 'a';
-            var r = inp[0] == 'b';
-            if (inp[0] == 'd') {
-                l = true;
-                r = true;
-            }
-
+            var l = inp[0] == 'a' || inp[0] == 'd';
+            var r = inp[0] == 'b' || inp[0] == 'd';
+            
             var curr_state = Game.phystick(l, r);
             if (curr_state != "game") {
-                Game.restart();
-                StateHandler.state = "pause";
+                StateHandler.state = curr_state;
+                break;
             }
             
             ReplayEngine.curr_tick_in_inpset++;
@@ -1088,9 +1109,9 @@ class ReplayEngine {
         Game.restart();
         for (var inps in replay) {
             for (var i = 0; i < replay[inps][1]; i++) {
-                console.log(Game.pogo_dude.x);
-                var l = replay[inps][0] == 'a' || replay[inps][0] == 'd';
-                var r = replay[inps][0] == 'b' || replay[inps][0] == 'd';
+                var inp = ReplayEngine.curr_replay[ReplayEngine.curr_inpset];
+                var l = inp[0] == 'a' || inp[0] == 'd';
+                var r = inp[0] == 'b' || inp[0] == 'd';
                 var curr_state = Game.phystick(l, r);
                 if (curr_state != "game")
                     return [curr_state, Game.clock];
@@ -1101,19 +1122,35 @@ class ReplayEngine {
 }
 
 class InputHandler {
-    static left = false;
-    static right = false;
-    static up = false;
-    static down = false;
-    static space = false;
-    static esc = false;
-    static eq_del = false;
-    static del = false;
-    static back = false;
+    // number codes for status:
+    // 0: not pressed
+    // 1: held
+    // 2: just pressed within last frame
+    static left = 0;
+    static right = 0;
+    static up = 0;
+    static down = 0;
+    static space = 0;
+    static esc = 0;
+    static eq_del = 0;
+    static del = 0;
+    static back = 0;
     static mouseX = 0;
     static mouseY = 0;
-    static click = false;
+    static click = 0;
     static start_click_coords = null;
+
+    // update just clicked status
+    static doUIupd() {
+        InputHandler.left -= InputHandler.left == 2;
+        InputHandler.up -= InputHandler.up == 2;
+        InputHandler.right -= InputHandler.right == 2;
+        InputHandler.down -= InputHandler.down == 2;
+        InputHandler.space -= InputHandler.space == 2;
+        InputHandler.esc -= InputHandler.esc == 2;
+        InputHandler.del -= InputHandler.del == 2;
+        InputHandler.eq_del -= InputHandler.eq_del == 2;
+    }
 }
 
 var game = new Game();
@@ -1159,30 +1196,26 @@ function draw_clouds() {
 document.addEventListener("keydown", function(k) {
     switch(k.keyCode) {
         case 37:
-            InputHandler.left = true;
+            InputHandler.left = 2;
             break;
         case 38:
-            InputHandler.up = true;
+            InputHandler.up = 2;
             break;
         case 39:
-            InputHandler.right = true;
+            InputHandler.right = 2;
             break;
         case 40:
-            InputHandler.down = true;
+            InputHandler.down = 2;
             break;
         case 32:
-            InputHandler.space = true;
+            InputHandler.space = 2;
             break;
         case 27:
-            InputHandler.esc = true;
+            InputHandler.esc = 2;
             break;
-        case 46:
-            InputHandler.del = true;
-            InputHandler.eq_del = true;
-            break;
-        case 8:
-            InputHandler.back = true;
-            InputHandler.eq_del = true;
+        case 46: case 8:
+            InputHandler.del = 2;
+            InputHandler.eq_del = 2;
             break;
         }
 });
@@ -1190,29 +1223,29 @@ document.addEventListener("keydown", function(k) {
 document.addEventListener("keyup", function(k) {
     switch(k.keyCode) {
         case 37:
-            InputHandler.left = false;
+            InputHandler.left = 0;
             break;
         case 38:
-            InputHandler.up = false;
+            InputHandler.up = 0;
             break;
         case 39:
-            InputHandler.right = false;
+            InputHandler.right = 0;
             break;
         case 40:
-            InputHandler.down = false;
+            InputHandler.down = 0;
             break;
         case 32:
-            InputHandler.space = false;
+            InputHandler.space = 0;
             break;
         case 27:
-            InputHandler.esc = false;
+            InputHandler.esc = 0;
             break;
-        case 46:
-            InputHandler.del = false;
+        case 46: // ??? i forgot why i did this? TODO: figure it out and comment
+            InputHandler.del = 0;
             InputHandler.eq_del = InputHandler.back;
             break;
         case 8:
-            InputHandler.back = false;
+            InputHandler.back = 0;
             InputHandler.eq_del = InputHandler.del;
             break;
     }
@@ -1229,7 +1262,7 @@ document.addEventListener("mousedown", function(e) {
     if (e.button == 0) {
         if (!InputHandler.click)
             InputHandler.start_click_coords = [e.clientX, e.clientY];
-        InputHandler.click = true;
+        InputHandler.click = 1 + (InputHandler.click == 0);
     }
 }); 
 
@@ -1237,7 +1270,7 @@ document.addEventListener("mouseup", function(e) {
     InputHandler.mouseX = e.clientX;
     InputHandler.mouseY = e.clientY;
     if (e.button == 0) {
-        InputHandler.click = false;
+        InputHandler.click = 0;
         InputHandler.start_click_coords = null;
     }
 });

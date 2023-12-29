@@ -509,6 +509,7 @@ class DBHandler {
                 }
                 DBHandler.waiting_for_updates--;
             });
+        console.log("successfully updated leaderboard");
     }
 
     static async post_to_leaderboard(lvl_id, time, replay={}) {
@@ -605,7 +606,7 @@ class StateHandler {
         "bonk": "LevelSelectMenu",
         "worldborder": "LevelSelectMenu",
         "win": "LevelSelectMenu",
-        "pause": "game",
+        "pause": "LevelSelectMenu",
         "lvledit": "LevelSelectMenu",
         "replay": "pause",
     };
@@ -922,7 +923,7 @@ class PauseScreen {
                 console.log(`posting new time: ${Game.phystime} on level: ${Game.level.name}`);
                 Leaderboard.level = Game.level.name;
                 DBHandler.post_to_leaderboard(Leaderboard.level, Game.clock)
-                DBHandler.update_leaderboard(Leaderboard.level);
+                // DBHandler.update_leaderboard(Leaderboard.level);
             }
             const LB_width = 600;
             const LB_height = 670;

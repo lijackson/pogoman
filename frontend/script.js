@@ -629,6 +629,8 @@ class StateHandler {
         if (StateHandler.state != StateHandler.last_state) {
             StateHandler.last_state = StateHandler.state;
             StateHandler.just_changed_state = true;
+        } else {
+            StateHandler.just_changed_state = false;
         }
 
         const next_frame_from_state = {
@@ -923,7 +925,7 @@ class PauseScreen {
                 console.log(`posting new time: ${Game.phystime} on level: ${Game.level.name}`);
                 Leaderboard.level = Game.level.name;
                 DBHandler.post_to_leaderboard(Leaderboard.level, Game.clock)
-                // DBHandler.update_leaderboard(Leaderboard.level);
+                DBHandler.update_leaderboard(Leaderboard.level);
             }
             const LB_width = 600;
             const LB_height = 670;

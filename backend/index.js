@@ -43,10 +43,10 @@ async function updateRecord(lvl_id, username, new_time, replay) {
         return false;
     }
 
-    if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
-        console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
-        return false;
-    }
+    // if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
+    //     console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
+    //     return false;
+    // }
     
     var record = {level_id: lvl_id, username: username, time: new_time, replay:replay};
     const updated_record = await app.locals.db.collection("scores")

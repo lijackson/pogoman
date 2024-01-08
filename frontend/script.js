@@ -598,6 +598,25 @@ class Leaderboard {
     }
 }
 
+// class MenuHandler { // TODO: finish all of this
+//     // current fullscreen menu animframe
+//     static menu_screen = LevelSelectMenu.animframe;
+
+//     // all "overlay" menus currently shown (like sign-in etc)
+//     static overlay_stack = [];
+
+//     // just reroutes to another menu related animframe
+//     static animframe() {
+//         if (MenuHandler.menu_screen)
+//             MenuHandler.menu_screen();
+
+//         overlay_stack.forEach(overlay => {
+//             overlay();
+//         });
+//     }
+
+// }
+
 class StateHandler {
     static backstates = 
     {

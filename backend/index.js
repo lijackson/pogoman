@@ -31,10 +31,10 @@ function validate_replay(level, replay, reported_time) {
         return false;
     }
     var real_time = 0;
-    for (var t = 0; t < replay.size(); t++) 
+    for (var t = 0; t < replay.length; t++) 
         real_time += replay[t][1];
     if (real_time*5 != reported_time) {
-        console.log(`real time (${real_time*5}ms) != reported time (${reported_time}ms)`)
+        console.log(`real time (${real_time*5}ms) != reported time (${reported_time}ms)`);
         return false;
     }
     // TODO: use the ReplayEngine to actually validate runs

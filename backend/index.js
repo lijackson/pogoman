@@ -26,13 +26,17 @@ async function getRecord(lvl_id, username) {
 }
 
 function validate_replay(level, replay, reported_time) {
-    if (!level || !replay || replay == [])
+    if (!level || !replay || replay == []) {
+        console.log("invalid info set");
         return false;
+    }
     var real_time = 0;
-    for (var t = 0; t < replay.size(); t++)
+    for (var t = 0; t < replay.size(); t++) 
         real_time += replay[t][1];
-    if (real_time != reported_time)
+    if (real_time*5 != reported_time) {
+        console.log(`real time (${real_time*5}ms) != reported time (${reported_time}ms)`)
         return false;
+    }
     // TODO: use the ReplayEngine to actually validate runs
     return true;
 }
@@ -42,16 +46,10 @@ async function updateRecord(lvl_id, username, new_time, replay) {
         console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}], replay: ${replay}]`);
         return false;
     }
-    console.log(`updating record with data:\n${lvl_id} : ${username} : ${new_time}\nreplay data below?`);
-    console.log(replay);
-    var real_time = 0;
-    for (var t = 0; t < replay.length; t++)
-        real_time += replay[t][1];
-    console.log(`time reported from replay: ${real_time}`);
-    // if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
-    //     console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
-    //     return false;
-    // }
+    if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
+        console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
+        return false;
+    }
     
     var record = {level_id: lvl_id, username: username, time: new_time, replay:replay};
     const updated_record = await app.locals.db.collection("scores")
@@ -99,8 +97,6 @@ app.post('/api/records/submit', jsonParser, async (req, res) => {
     return res.status(200).json({ ok: true });
 });
 
-
-
 // app.listen(port, () => {
 //     console.log(`started server on port ${port}`);
 // });
@@ -113,6 +109,3 @@ MongoClient.connect(process.env.POGO_MONGODB_URL, { useNewUrlParser: true, useUn
             console.log(`Pogoman listening on port ${port}!`);
         });
     });
-
-// Testing
-// main().catch(console.error);

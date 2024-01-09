@@ -42,7 +42,11 @@ async function updateRecord(lvl_id, username, new_time, replay) {
         console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}], replay: ${replay}]`);
         return false;
     }
-
+    console.log(`updating record with data:\n${lvl_id} : ${username} : ${new_time}\n${replay}\n`);
+    // var real_time = 0;
+    // for (var t = 0; t < replay.size(); t++)
+    //     real_time += replay[t][1];
+    // console.log(`time reported from replay: ${real_time}`);
     // if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
     //     console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
     //     return false;

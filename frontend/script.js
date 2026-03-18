@@ -423,11 +423,28 @@ class LevelSelectMenu {
             StateHandler.state = "lvledit";
         }),
 
-        // setname? TODO: ok fr this is not what logging in means
-        new Button(720, -100, 200, 80, "setname", ()=>{
-            if (!DBHandler.logged_in_username)
-                DBHandler.logged_in_username = window.prompt("Enter a username");
-            // necessary because the prompt stops the window from listening to inputs ig?
+        new Button(720, -100, 200, 80, "attach old username", async ()=>{
+            if (!UserAuth.currentUser) {
+                window.alert("You must be logged in to attach old anonymous scores.");
+            } else {
+                const existing = window.prompt("Enter your previous username to attach:");
+                if (existing) {
+                    const res = await fetch('/api/auth/attach-username', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${UserAuth.token}`
+                        },
+                        body: JSON.stringify({ existing_username: existing })
+                    });
+                    const data = await res.json();
+                    if (data.ok) {
+                        window.alert(`Attached ${data.modifiedCount} record(s) from ${existing}.`);
+                    } else {
+                        window.alert('Could not attach records: ' + (data.message || 'unknown'));
+                    }
+                }
+            }
             InputHandler.click = 0;
             InputHandler.start_click_coords = null;
         }),
@@ -464,10 +481,12 @@ class LevelSelectMenu {
             LevelSelectMenu.buttons[i].draw();
         }
 
-        // TODO: remove after testing
+        // User status in main menu
         ctx.fillStyle = "#000";
-        ctx.font = "32px Courier New";
-        ctx.fillText("sorry, dev == prod, ur gonna have to deal with it. dont press log in, its broken", 100, 350);
+        ctx.font = "24px Courier New";
+        let statusText = "Not signed in";
+        if (UserAuth.currentUser) statusText = `Signed in: ${UserAuth.currentUser.display_name}`;
+        ctx.fillText(statusText, 100, 350);
     }
 }
 
@@ -487,6 +506,84 @@ class Timer {
     }
 }
 
+class UserAuth {
+    static currentUser = null;
+    static tokenKey = 'pogoman_auth_token';
+
+    static get token() {
+        return localStorage.getItem(UserAuth.tokenKey);
+    }
+
+    static set token(value) {
+        if (value) {
+            localStorage.setItem(UserAuth.tokenKey, value);
+        } else {
+            localStorage.removeItem(UserAuth.tokenKey);
+        }
+    }
+
+    static async loadSession() {
+        const token = UserAuth.token;
+        if (!token) return;
+        const res = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.ok && data.authenticated) {
+            UserAuth.currentUser = data.user;
+            DBHandler.logged_in_username = data.user.display_name;
+            UserAuth.updateUI();
+        } else {
+            UserAuth.logout();
+        }
+    }
+
+    static async handleGoogleCredentialResponse(response) {
+        if (!response || !response.credential) {
+            return;
+        }
+        const res = await fetch('/api/auth/google', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (data.ok && data.token) {
+            UserAuth.token = data.token;
+            UserAuth.currentUser = data.user;
+            DBHandler.logged_in_username = data.user.display_name;
+            UserAuth.updateUI();
+            document.getElementById('sign_in_menu').style.visibility = 'hidden';
+            LevelSelectMenu.draw();
+        }
+    }
+
+    static async logout() {
+        UserAuth.token = null;
+        UserAuth.currentUser = null;
+        DBHandler.logged_in_username = null;
+        UserAuth.updateUI();
+        await DBHandler.update_leaderboard(Leaderboard.level);
+    }
+
+    static updateUI() {
+        const status = document.getElementById('signed_in_status');
+        const signOutBtn = document.getElementById('sign_out_btn');
+        if (!status || !signOutBtn) return;
+        if (UserAuth.currentUser) {
+            status.textContent = `Signed in as ${UserAuth.currentUser.display_name}`;
+            signOutBtn.style.display = 'block';
+        } else {
+            status.textContent = 'Not signed in';
+            signOutBtn.style.display = 'none';
+        }
+    }
+}
+
+function handleGoogleCredentialResponse(response) {
+    UserAuth.handleGoogleCredentialResponse(response);
+}
+
 class DBHandler {
     static leaderboards = {};
     static player_bests = {};
@@ -495,42 +592,39 @@ class DBHandler {
 
     static async update_leaderboard(lvl_id) {
         DBHandler.waiting_for_updates++;
-        fetch(`/api/records/${lvl_id}`)
-            .then(response=>response.json())
-            .then(records => {
-                DBHandler.leaderboards[lvl_id] = records;
-                console.log(DBHandler.leaderboards[lvl_id]);
-                DBHandler.leaderboards[lvl_id].sort((a, b)=>{return a.time - b.time})
-                for (var rec in DBHandler.leaderboards[lvl_id]) {
-                    if (rec["username"] == DBHandler.logged_in_username) {
-                        DBHandler.player_best[lvl_id] = rec["time"];
-                        break;
-                    }
-                }
-                DBHandler.waiting_for_updates--;
-            });
-        console.log("successfully updated leaderboard");
+        const response = await fetch(`/api/records/${lvl_id}`);
+        const records = await response.json();
+        DBHandler.leaderboards[lvl_id] = records;
+        DBHandler.leaderboards[lvl_id].sort((a, b) => a.time - b.time);
+        for (const rec of DBHandler.leaderboards[lvl_id]) {
+            if (rec.username === DBHandler.logged_in_username) {
+                DBHandler.player_bests[lvl_id] = rec.time;
+                break;
+            }
+        }
+        DBHandler.waiting_for_updates--;
     }
 
-    static async post_to_leaderboard(lvl_id, time, replay={}) {
-        // If the player is not logged in, don't send anything to the server
-        if (DBHandler.logged_in_username == null)
+    static async post_to_leaderboard(lvl_id, time, replay = {}) {
+        // Unnamed levels shouldn't record scores
+        if (!lvl_id || lvl_id === 'unnamed_level')
             return;
 
-        // Unnamed levels shouldnt record scores
-        if (!lvl_id || lvl_id == "unnamed_level")
-            return
-        
         // If the time is worse, don't even send it to the server
-        if (lvl_id in DBHandler.player_bests && time > DBHandler.player_bests[lvl_id]["time"])
+        if (lvl_id in DBHandler.player_bests && time > DBHandler.player_bests[lvl_id])
             return;
-        
-        var res = await fetch(`/api/records/submit`, {
+
+        const token = UserAuth.token;
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const res = await fetch('/api/records/submit', {
             method: 'POST',
-            headers: {
-                Accept: 'application.json',
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({
                 level_id: lvl_id,
                 username: DBHandler.logged_in_username,
@@ -538,9 +632,7 @@ class DBHandler {
                 replay: Game.replay
             })
         });
-
-        console.log(`finished posting new time, got result: ${res} from server`);
-
+        console.log(`finished posting new time, got result: ${res.status}`);
         await DBHandler.update_leaderboard(lvl_id);
     }
 }
@@ -1304,5 +1396,13 @@ function resize_window() {
 
 window.addEventListener("resize", resize_window);
 resize_window();
+
+document.getElementById('sign_out_btn').addEventListener('click', () => {
+    UserAuth.logout();
+});
+
+UserAuth.loadSession().then(() => {
+    UserAuth.updateUI();
+});
 
 requestAnimationFrame(StateHandler.handle);

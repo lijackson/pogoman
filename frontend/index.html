@@ -15,17 +15,19 @@
 			<div id="google_sign_in_btn">
 				<div id="g_id_onload"
 					data-client_id="410032099071-6f6pthqhls396teolokorbraq0843nkc.apps.googleusercontent.com"
-					data-login_uri="https://your.domain/your_login_endpoint"
-					data-auto_prompt="false">
-				</div>
-				<div class="g_id_signin"
-					data-type="standard"
-					data-size="large"
-					data-theme="outline"
-					data-text="sign_in_with"
-					data-shape="rectangular"
-					data-logo_alignment="left">
-				</div>
+				data-callback="handleGoogleCredentialResponse"
+				data-auto_prompt="false">
+			</div>
+			<div class="g_id_signin"
+				data-type="standard"
+				data-size="large"
+				data-theme="outline"
+				data-text="sign_in_with"
+				data-shape="rectangular"
+				data-logo_alignment="left">
+			</div>
+			<div id="signed_in_status" style="color:white; margin-top:8px; text-align:center;"></div>
+			<button id="sign_out_btn" style="display:none; margin-top:8px; width:100%;">Sign Out</button>
 			</div>
 		</div>
 		<canvas id="paper"></canvas>

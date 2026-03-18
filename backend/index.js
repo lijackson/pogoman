@@ -106,10 +106,6 @@ async function updateRecord(lvl_id, username, new_time, replay) {
     return updated_record;
 }
 
-// Serving
-const app = express();
-const port = 5000;
-
 app.get('/api/records/:lvl_id', async (req, res) => {
     var {lvl_id} = req.params;
     console.log(`retrieving records for level: ${lvl_id}`)

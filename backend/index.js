@@ -65,36 +65,50 @@ async function getRecordsByLevel(lvl_id) {
     return await result.toArray();
 }
 
-async function getCurrentRecord(level_id, username, account_id) {
-    const query = { level_id };
-    if (account_id) {
-        query.account_id = account_id;
-        return await app.locals.db.collection('scores').findOne(query);
-    }
-    if (username) {
-        query.username = username;
-        query.account_id = { $exists: false };
-        return await app.locals.db.collection('scores').findOne(query);
-    }
-    return null;
+async function getRecord(lvl_id, username) {
+    var result = await app.locals.db.collection("scores").findOne({level_id: lvl_id, username: username});
+    if (!result)
+        return null;
+    console.log(`successfully got record: ${result}`);
+    return await result;
 }
 
-async function updateRecord(level_id, username, time, replay, account_id) {
-    if (!level_id || !username || typeof time !== 'number' || !replay) {
-        console.log(`Not a full dataset for record [lvl_id: ${level_id}, username: ${username}, time: ${time}]`);
+function validate_replay(level, replay, reported_time) {
+    if (!level || !replay || replay == []) {
+        console.log("invalid info set");
         return false;
     }
-    let filter;
-    if (account_id) {
-        filter = { level_id, account_id };
-    } else {
-        filter = { level_id, username, account_id: { $exists: false } };
+    var real_time = 0;
+    for (var t = 0; t < replay.length; t++) 
+        real_time += replay[t][1];
+    if (real_time*5 != reported_time) {
+        console.log(`real time (${real_time*5}ms) != reported time (${reported_time}ms)`);
+        return false;
     }
-    const record = { level_id, username, time, replay };
-    if (account_id) record.account_id = account_id;
-    const updated = await app.locals.db.collection('scores').updateOne(filter, { $set: record }, { upsert: true });
-    return updated.acknowledged;
+    // TODO: use the ReplayEngine to actually validate runs
+    return true;
 }
+
+async function updateRecord(lvl_id, username, new_time, replay) {
+    if (!lvl_id || !username || !new_time || !replay) {
+        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}], replay: ${replay}]`);
+        return false;
+    }
+    if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
+        console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
+        return false;
+    }
+    
+    var record = {level_id: lvl_id, username: username, time: new_time, replay:replay};
+    const updated_record = await app.locals.db.collection("scores")
+        .updateOne({level_id: lvl_id, username: username}, {$set: record}, {upsert: true});
+    
+    return updated_record;
+}
+
+// Serving
+const app = express();
+const port = 5000;
 
 app.get('/api/records/:lvl_id', async (req, res) => {
     var {lvl_id} = req.params;
@@ -193,6 +207,3 @@ MongoClient.connect(process.env.POGO_MONGODB_URL, { useNewUrlParser: true, useUn
             console.log(`Pogoman listening on port ${port}!`);
         });
     });
-
-// Testing
-// main().catch(console.error);

@@ -65,8 +65,8 @@ async function getRecordsByLevel(lvl_id) {
     return await result.toArray();
 }
 
-async function getRecord(lvl_id, username) {
-    var result = await app.locals.db.collection("scores").findOne({level_id: lvl_id, username: username});
+async function getRecord(lvl_id, account_id) {
+    var result = await app.locals.db.collection("scores").findOne({level_id: lvl_id, account_id: account_id});
     if (!result)
         return null;
     console.log(`successfully got record: ${result}`);
@@ -89,21 +89,40 @@ function validate_replay(level, replay, reported_time) {
     return true;
 }
 
-async function updateRecord(lvl_id, username, new_time, replay) {
-    if (!lvl_id || !username || !new_time || !replay) {
-        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, username: ${username}, time: ${new_time}], replay: ${replay}]`);
+async function updateRecord(lvl_id, google_id, new_time, replay) {
+    if (!lvl_id || !google_id || !new_time || !replay) {
+        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, google_id: ${google_id}, time: ${new_time}], replay: ${replay}]`);
         return false;
     }
+
+    const user = await app.locals.db.collection("users").findOne({ google_sub: google_id });
+    if (!user) {
+        console.log(`Could not find user with google_id ${google_id}`);
+        return false;
+    }
+    const user_id = user._id.toString();
+    
     if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
-        console.log(`User "${username}" submitted a time of ${new_time}ms for level ${lvl_id} without a valid replay`);
+        console.log(`User "${user.display_name}" (${user_id}) submitted a time of ${new_time}ms for level ${lvl_id} with an invalid replay`);
         return false;
     }
     
-    var record = {level_id: lvl_id, username: username, time: new_time, replay:replay};
+    var record = {level_id: lvl_id, user_id: user_id, time: new_time, replay:replay};
     const updated_record = await app.locals.db.collection("scores")
-        .updateOne({level_id: lvl_id, username: username}, {$set: record}, {upsert: true});
+        .updateOne({level_id: lvl_id, account_id: user_id}, {$set: record}, {upsert: true});
     
     return updated_record;
+}
+
+async function attachUsername(existing_username, new_user_id) {
+    if (!existing_username || !new_user_id) {
+        console.log(`Not a full dataset for attachUsername [existing_username: ${existing_username}, new_user_id: ${new_user_id}]`);
+        return false;
+    }
+    // original username will be kept as a legacy field for reference but will no longer be used for lookups
+    const result = await app.locals.db.collection("scores").updateMany({ username: existing_username, account_id: { $exists: false } }, { $set: { account_id: new_user_id } });
+    console.log(`Attached ${result.modifiedCount} record(s) from ${existing_username} to user_id ${new_user_id}`);
+    return result;
 }
 
 app.get('/api/records/:lvl_id', async (req, res) => {
@@ -124,30 +143,21 @@ app.get('/api/records/:lvl_id', async (req, res) => {
 });
 
 app.post('/api/records/submit', async (req, res) => {
-    const { level_id, username, time, replay } = req.body;
+    const { level_id, time, replay } = req.body;
     if (!level_id || typeof time !== 'number' || !replay) {
         return res.status(400).json({ ok: false, message: 'Missing required fields' });
     }
 
     if (req.user) {
-        const chosenUsername = req.user.display_name || username || 'Player';
-        const current = await getCurrentRecord(level_id, null, req.user._id.toString());
+        const display_name = req.user.display_name;
+        const current = await getRecord(level_id, req.user._id.toString());
         if (!current || time <= current.time) {
-            const success = await updateRecord(level_id, chosenUsername, time, replay, req.user._id.toString());
+            const success = await updateRecord(level_id, req.user.google_sub, time, replay, req.user._id.toString());
             if (!success) return res.status(500).json({ ok: false, message: 'Unable to write authenticated score' });
         }
-        return res.status(200).json({ ok: true, authenticated: true, username: chosenUsername });
+        return res.status(200).json({ ok: true, authenticated: true, username: display_name });
     }
-
-    if (!username) {
-        return res.status(400).json({ ok: false, message: 'Missing username for anonymous score' });
-    }
-    const current = await getCurrentRecord(level_id, username, null);
-    if (!current || time <= current.time) {
-        const success = await updateRecord(level_id, username, time, replay, null);
-        if (!success) return res.status(500).json({ ok: false, message: 'Unable to write anonymous score' });
-    }
-    return res.status(200).json({ ok: true, authenticated: false, username });
+    return res.status(500).json({ ok: false, message: 'Attempted to submit a score without being authenticated' });
 });
 
 app.post('/api/auth/google', async (req, res) => {
@@ -184,12 +194,16 @@ app.get('/api/auth/me', (req, res) => {
     return res.status(200).json({ ok: true, authenticated: true, user: { id: req.user._id.toString(), display_name: req.user.display_name, email: req.user.email } });
 });
 
-app.post('/api/auth/attach-username', async (req, res) => {
+app.post('/api/auth/set-username', async (req, res) => {
     if (!req.user) return res.status(401).json({ ok: false, message: 'Not authenticated' });
-    const { existing_username } = req.body;
-    if (!existing_username) return res.status(400).json({ ok: false, message: 'existing_username required' });
-    const updateResult = await app.locals.db.collection('scores').updateMany({ username: existing_username, account_id: { $exists: false } }, { $set: { account_id: req.user._id.toString() } });
-    return res.status(200).json({ ok: true, modifiedCount: updateResult.modifiedCount });
+    const { new_display_name } = req.body;
+    if (!new_display_name) return res.status(400).json({ ok: false, message: 'new_display_name required' });
+    const updateResult = await app.locals.db.collection('users').updateOne({ google_sub: req.user.google_sub }, { $set: { display_name: new_display_name } });
+
+    // attach existing records with the old username to this account_id for legacy support (can be removed in the future when we switch fully to account_id based lookups)
+    const attachResult = await attachUsername(req.user.display_name, req.user._id.toString());
+    
+    return res.status(200).json({ ok: true });
 });
 
 // app.listen(port, () => {

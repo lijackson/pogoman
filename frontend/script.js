@@ -423,25 +423,25 @@ class LevelSelectMenu {
             StateHandler.state = "lvledit";
         }),
 
-        new Button(720, -100, 200, 80, "attach old username", async ()=>{
+        new Button(720, -100, 200, 80, "set username", async ()=>{
             if (!UserAuth.currentUser) {
-                window.alert("You must be logged in to attach old anonymous scores.");
+                window.alert("You must be logged in to set your username.");
             } else {
-                const existing = window.prompt("Enter your previous username to attach:");
-                if (existing) {
-                    const res = await fetch('/api/auth/attach-username', {
+                const new_display_name = window.prompt("Enter your new username:");
+                if (new_display_name) {
+                    const res = await fetch('/api/auth/set-username', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${UserAuth.token}`
                         },
-                        body: JSON.stringify({ existing_username: existing })
+                        body: JSON.stringify({ new_display_name })
                     });
                     const data = await res.json();
                     if (data.ok) {
-                        window.alert(`Attached ${data.modifiedCount} record(s) from ${existing}.`);
+                        window.alert(`Username updated successfully.`);
                     } else {
-                        window.alert('Could not attach records: ' + (data.message || 'unknown'));
+                        window.alert('Could not update username: ' + (data.message || 'unknown error'));
                     }
                 }
             }

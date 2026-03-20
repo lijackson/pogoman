@@ -80,7 +80,7 @@ async function getRecordsByLevel(lvl_id) {
     const users = await app.locals.db.collection('users').find({}).toArray();
     const client_facing_records = records.map(dbRecord => {
         const user = dbRecord.account_id
-            ? users.find(u => u._id.toString() === dbRecord.account_id) || null
+            ? users.find(u => u._id.toString() === dbRecord.account_id)
             : null;
         return mapDBRecordToClientRecord(dbRecord, user);
     }).toArray();
@@ -94,7 +94,7 @@ async function getRecord(lvl_id, account_id) {
     console.log(`successfully got record: ${JSON.stringify(record)}`);
     if (!record)
         return null;
-    const result = mapDBRecordToClientRecord(record, user || null);
+    const result = mapDBRecordToClientRecord(record, user);
     console.log(`converted to client record: ${JSON.stringify(result)}`);
     return await result;
 }

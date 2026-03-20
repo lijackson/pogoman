@@ -60,8 +60,7 @@ app.use(loadUserFromToken);
 //     console.log(`Inserted new level into DB: ${result.insertedId}`);
 // }
 
-async function mapDBRecordToClientRecord(dbRecord, user) {
-
+function mapDBRecordToClientRecord(dbRecord, user) {
     const record = {
         level_id: dbRecord.level_id,
         time: dbRecord.time,
@@ -72,17 +71,8 @@ async function mapDBRecordToClientRecord(dbRecord, user) {
                 ? dbRecord.username
                 : "Unknown Player"
     };
-    console.log(`mapping db record ${dbRecord} with user ${user} to client record: ${record}`);
-    return {
-        level_id: dbRecord.level_id,
-        time: dbRecord.time,
-        replay: dbRecord.replay,
-        display_name: user
-            ? user.display_name
-            : dbRecord.username
-                ? dbRecord.username
-                : "Unknown Player"
-    }
+    console.log(`mapping db record ${dbRecord.toString()} with user ${user} to client record: ${record.toString()}`);
+    return record;
 }
 
 async function getRecordsByLevel(lvl_id) {

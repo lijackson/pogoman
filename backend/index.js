@@ -184,7 +184,7 @@ app.post('/api/records/submit', async (req, res) => {
             const success = await updateRecord(level_id, account_id, time, replay);
             if (!success) return res.status(500).json({ ok: false, message: 'Unable to write authenticated score' });
         }
-        return res.status(200).json({ ok: true, authenticated: true, username: display_name });
+        return res.status(200).json({ ok: true, authenticated: true, username: user.display_name });
     }
     return res.status(500).json({ ok: false, message: 'Attempted to submit a score without being authenticated' });
 });

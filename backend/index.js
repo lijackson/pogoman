@@ -71,7 +71,7 @@ function mapDBRecordToClientRecord(dbRecord, user) {
                 ? dbRecord.username
                 : "Unknown Player"
     };
-    console.log(`mapping db record ${dbRecord.toString()} with user ${user} to client record: ${record.toString()}`);
+    console.log(`mapping db record ${JSON.stringify(dbRecord)} with user ${JSON.stringify(user)} to client record: ${JSON.stringify(record)}`);
     return record;
 }
 
@@ -86,11 +86,11 @@ async function getRecordsByLevel(lvl_id) {
 async function getRecord(lvl_id, account_id) {
     const record = await app.locals.db.collection("scores").findOne({level_id: lvl_id, account_id: account_id});
     const user = await app.locals.db.collection('users').findOne({account_id: account_id});
-    console.log(`successfully got record: ${record}`);
+    console.log(`successfully got record: ${JSON.stringify(record)}`);
     if (!record)
         return null;
     const result = mapDBRecordToClientRecord(record, user);
-    console.log(`converted to client record: ${result}`);
+    console.log(`converted to client record: ${JSON.stringify(result)}`);
     return await result;
 }
 

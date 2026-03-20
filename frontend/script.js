@@ -673,7 +673,7 @@ class Leaderboard {
         for (var i = 0; i < Math.min(10, DBHandler.leaderboards[Leaderboard.level].length); i++) {
             var rec = DBHandler.leaderboards[Leaderboard.level][i];
             this.draw_record(x+wide_padding, y+(rh+10)*i+header_space, width-wide_padding*2, rh, 
-                             rec["username"], rec["time"]/1000);
+                             rec["display_name"], rec["time"]/1000);
         }
     }
 

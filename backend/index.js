@@ -60,30 +60,45 @@ app.use(loadUserFromToken);
 //     console.log(`Inserted new level into DB: ${result.insertedId}`);
 // }
 
+async function mapDBRecordToClientRecord(dbRecord, user) {
+
+    const record = {
+        level_id: dbRecord.level_id,
+        time: dbRecord.time,
+        replay: dbRecord.replay,
+        display_name: user
+            ? user.display_name
+            : dbRecord.username
+                ? dbRecord.username
+                : "Unknown Player"
+    };
+    console.log(`mapping db record ${dbRecord} with user ${user} to client record: ${record}`);
+    return {
+        level_id: dbRecord.level_id,
+        time: dbRecord.time,
+        replay: dbRecord.replay,
+        display_name: user
+            ? user.display_name
+            : dbRecord.username
+                ? dbRecord.username
+                : "Unknown Player"
+    }
+}
+
 async function getRecordsByLevel(lvl_id) {
     const records = await app.locals.db.collection('scores').find({ level_id: lvl_id });
     const users = await app.locals.db.collection('users').find({}).toArray();
-    const client_facing_records = records.map(rec => {
-        const user = users.find(u => u._id.toString() === rec.account_id);
-        return {
-            level_id: rec.level_id,
-            time: rec.time,
-            replay: rec.replay,
-            display_name: user
-                ? user.display_name
-                : rec.username
-                    ? rec.username
-                    : "Unknown Player"
-        }
-    });
+    const client_facing_records = records.map(dbRecord => mapDBRecordToClientRecord(dbRecord, users.find(u => u._id.toString() === dbRecord.account_id)));
     console.log(`got records for level ${lvl_id}: `, client_facing_records);
     return await client_facing_records;
 }
 
 async function getRecord(lvl_id, account_id) {
-    var result = await app.locals.db.collection("scores").findOne({level_id: lvl_id, account_id: account_id});
-    if (!result)
+    const record = await app.locals.db.collection("scores").findOne({level_id: lvl_id, account_id: account_id});
+    const user = await app.locals.db.collection('users').findOne({account_id: account_id}).toArray();
+    if (!record)
         return null;
+    const result = mapDBRecordToClientRecord(record, user);
     console.log(`successfully got record: ${result}`);
     return await result;
 }

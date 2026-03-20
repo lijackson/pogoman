@@ -110,21 +110,25 @@ function validate_replay(level, replay, reported_time) {
     return true;
 }
 
-async function updateRecord(lvl_id, google_id, new_time, replay) {
-    if (!lvl_id || !google_id || !new_time || !replay) {
-        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, google_id: ${google_id}, time: ${new_time}], replay: ${replay}]`);
-        return false;
-    }
-
+async function google_id_to_user(google_id) {
+    if (!google_id)
+        return null;
     const user = await app.locals.db.collection("users").findOne({ google_sub: google_id });
     if (!user) {
         console.log(`Could not find user with google_id ${google_id}`);
+        return null;
+    }
+    return user;
+}
+
+async function updateRecord(lvl_id, account_id, new_time, replay) {
+    if (!lvl_id || !account_id || !new_time || !replay) {
+        console.log(`Not a full dataset for record [lvl_id: ${lvl_id}, account_id: ${account_id}, time: ${new_time}], replay: ${replay}]`);
         return false;
     }
-    const account_id = user._id.toString();
     
     if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
-        console.log(`User "${user.display_name}" (${account_id}) submitted a time of ${new_time}ms for level ${lvl_id} with an invalid replay`);
+        console.log(`User "${account_id} submitted a time of ${new_time}ms for level ${lvl_id} with an invalid replay`);
         return false;
     }
     
@@ -170,10 +174,10 @@ app.post('/api/records/submit', async (req, res) => {
     }
 
     if (req.user) {
-        const display_name = req.user.display_name;
-        const current = await getRecord(level_id, req.user._id.toString());
+        const account_id = google_id_to_user(req.user.google_sub)._id.toString();
+        const current = await getRecord(level_id, account_id);
         if (!current || time <= current.time) {
-            const success = await updateRecord(level_id, req.user.google_sub, time, replay, req.user._id.toString());
+            const success = await updateRecord(level_id, account_id, time, replay);
             if (!success) return res.status(500).json({ ok: false, message: 'Unable to write authenticated score' });
         }
         return res.status(200).json({ ok: true, authenticated: true, username: display_name });
@@ -196,7 +200,7 @@ app.post('/api/auth/google', async (req, res) => {
         return res.status(401).json({ ok: false, message: 'Invalid Google credential payload' });
     }
 
-    let user = await app.locals.db.collection('users').findOne({ google_sub: payload.sub });
+    let user = await google_id_to_user(payload.sub);
     if (!user) {
         const time = new Date();
         const insertResult = await app.locals.db.collection('users').insertOne({ google_sub: payload.sub, email: payload.email || '', display_name: payload.name || payload.email || "Player-"+time.getMilliseconds(), created_at: time });

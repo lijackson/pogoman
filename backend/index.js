@@ -13,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "default_change_me_37vkje4dxd90gs6s
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 function createJwtForUser(user) {
-    return jwt.sign({ user_id: user._id.toString(), display_name: user.display_name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    return jwt.sign({ account_id: user._id.toString(), display_name: user.display_name, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
 }
 
 function verifyJwt(token) {
@@ -38,12 +38,12 @@ async function loadUserFromToken(req, res, next) {
     }
     const token = authHeader.split(' ')[1];
     const payload = verifyJwt(token);
-    if (!payload || !payload.user_id) {
+    if (!payload || !payload.account_id) {
         req.user = null;
         return next();
     }
     try {
-        const user = await app.locals.db.collection('users').findOne({ _id: new ObjectId(payload.user_id) });
+        const user = await app.locals.db.collection('users').findOne({ _id: new ObjectId(payload.account_id) });
         req.user = user || null;
     } catch (err) {
         console.error('auth lookup failed', err);
@@ -100,28 +100,28 @@ async function updateRecord(lvl_id, google_id, new_time, replay) {
         console.log(`Could not find user with google_id ${google_id}`);
         return false;
     }
-    const user_id = user._id.toString();
+    const account_id = user._id.toString();
     
     if (!validate_replay(lvl_id, replay, new_time)) { // TODO: switch this to actually getting the level
-        console.log(`User "${user.display_name}" (${user_id}) submitted a time of ${new_time}ms for level ${lvl_id} with an invalid replay`);
+        console.log(`User "${user.display_name}" (${account_id}) submitted a time of ${new_time}ms for level ${lvl_id} with an invalid replay`);
         return false;
     }
     
-    var record = {level_id: lvl_id, user_id: user_id, time: new_time, replay:replay};
+    var record = {level_id: lvl_id, account_id: account_id, time: new_time, replay:replay};
     const updated_record = await app.locals.db.collection("scores")
-        .updateOne({level_id: lvl_id, account_id: user_id}, {$set: record}, {upsert: true});
+        .updateOne({level_id: lvl_id, account_id: account_id}, {$set: record}, {upsert: true});
     
     return updated_record;
 }
 
-async function attachUsername(existing_username, new_user_id) {
-    if (!existing_username || !new_user_id) {
-        console.log(`Not a full dataset for attachUsername [existing_username: ${existing_username}, new_user_id: ${new_user_id}]`);
+async function attachUsername(existing_username, new_account_id) {
+    if (!existing_username || !new_account_id) {
+        console.log(`Not a full dataset for attachUsername [existing_username: ${existing_username}, new_account_id: ${new_account_id}]`);
         return false;
     }
     // original username will be kept as a legacy field for reference but will no longer be used for lookups
-    const result = await app.locals.db.collection("scores").updateMany({ username: existing_username, account_id: { $exists: false } }, { $set: { account_id: new_user_id } });
-    console.log(`Attached ${result.modifiedCount} record(s) from ${existing_username} to user_id ${new_user_id}`);
+    const result = await app.locals.db.collection("scores").updateMany({ username: existing_username, account_id: { $exists: false } }, { $set: { account_id: new_account_id } });
+    console.log(`Attached ${result.modifiedCount} record(s) from ${existing_username} to account_id ${new_account_id}`);
     return result;
 }
 

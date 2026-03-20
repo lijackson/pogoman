@@ -174,7 +174,11 @@ app.post('/api/records/submit', async (req, res) => {
     }
 
     if (req.user) {
-        const account_id = google_id_to_user(req.user.google_sub)._id.toString();
+        const user = await google_id_to_user(req.user.google_sub);
+        if (!user)
+            return res.status(401).json({ ok: false, message: 'User not found' });
+        const account_id = user._id.toString();
+
         const current = await getRecord(level_id, account_id);
         if (!current || time <= current.time) {
             const success = await updateRecord(level_id, account_id, time, replay);

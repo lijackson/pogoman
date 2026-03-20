@@ -84,8 +84,9 @@ async function getRecordsByLevel(lvl_id) {
             ? users.find(u => u._id.toString() === dbRecord.account_id)
             : null;
         // disambiguate displayed records
-        if (!client_facing_records[dbRecord.account_id] || dbRecord.time < client_facing_records[dbRecord.account_id].time) {
-            client_facing_records[dbRecord.account_id] = mapDBRecordToClientRecord(dbRecord, user);
+        const clientRecord = mapDBRecordToClientRecord(dbRecord, user);
+        if (!client_facing_records[clientRecord.display_name] || dbRecord.time < client_facing_records[clientRecord.display_name].time) {
+            client_facing_records[clientRecord.display_name] = clientRecord;
         }
     })
     console.log(`got records for level ${lvl_id}: `, client_facing_records);

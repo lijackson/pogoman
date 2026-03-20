@@ -61,8 +61,22 @@ app.use(loadUserFromToken);
 // }
 
 async function getRecordsByLevel(lvl_id) {
-    const result = await app.locals.db.collection('scores').find({ level_id: lvl_id });
-    return await result.toArray();
+    const records = await app.locals.db.collection('scores').find({ level_id: lvl_id });
+    const users = await app.locals.db.collection('users').find({}).toArray();
+    const client_facing_records = records.map(rec => {
+        const user = users.find(u => u._id.toString() === rec.account_id);
+        return {
+            level_id: rec.level_id,
+            time: rec.time,
+            replay: rec.replay,
+            display_name: user
+                ? user.display_name
+                : rec.username
+                    ? rec.username
+                    : "Unknown Player"
+        }
+    });
+    return await client_facing_records;
 }
 
 async function getRecord(lvl_id, account_id) {
@@ -177,12 +191,9 @@ app.post('/api/auth/google', async (req, res) => {
 
     let user = await app.locals.db.collection('users').findOne({ google_sub: payload.sub });
     if (!user) {
-        const insertResult = await app.locals.db.collection('users').insertOne({ google_sub: payload.sub, email: payload.email || '', display_name: payload.name || payload.email || 'Player', created_at: new Date() });
+        const time = new Date();
+        const insertResult = await app.locals.db.collection('users').insertOne({ google_sub: payload.sub, email: payload.email || '', display_name: payload.name || payload.email || "Player-"+time.getMilliseconds(), created_at: time });
         user = await app.locals.db.collection('users').findOne({ _id: insertResult.insertedId });
-    } else {
-        const updateData = { display_name: payload.name || user.display_name, email: payload.email || user.email };
-        await app.locals.db.collection('users').updateOne({ _id: user._id }, { $set: updateData });
-        user = await app.locals.db.collection('users').findOne({ _id: user._id });
     }
 
     const token = createJwtForUser(user);

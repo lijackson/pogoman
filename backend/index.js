@@ -79,7 +79,7 @@ async function getRecordsByLevel(lvl_id) {
     const records = await app.locals.db.collection('scores').find({ level_id: lvl_id });
     const users = await app.locals.db.collection('users').find({}).toArray();
     const client_facing_records = {};
-    records.foreach(dbRecord => {
+    records.forEach(dbRecord => {
         const user = dbRecord.account_id
             ? users.find(u => u._id.toString() === dbRecord.account_id)
             : null;
@@ -169,11 +169,7 @@ app.get('/api/records/:lvl_id', async (req, res) => {
     } catch(e) {
         console.log(e);
         return res.status(500).json({ ok: false, message: "Bad request" });
-    } finally {
     }
-    records.forEach(rec => {
-        console.log(rec);
-    });
     return res.status(200).json(records);
 });
 

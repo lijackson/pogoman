@@ -71,7 +71,6 @@ function mapDBRecordToClientRecord(dbRecord, user) {
                 ? dbRecord.username
                 : "Unknown Player"
     };
-    console.log(`mapping db record ${JSON.stringify(dbRecord)} with user ${JSON.stringify(user)} to client record: ${JSON.stringify(record)}`);
     return record;
 }
 
@@ -89,7 +88,6 @@ async function getRecordsByLevel(lvl_id) {
             client_facing_records[clientRecord.display_name] = clientRecord;
         }
     })
-    console.log(`got records for level ${lvl_id}: `, client_facing_records);
     return Array.from(Object.values(client_facing_records));
 }
 
@@ -161,7 +159,6 @@ async function attachUsername(existing_username, new_account_id) {
 
 app.get('/api/records/:lvl_id', async (req, res) => {
     var {lvl_id} = req.params;
-    console.log(`retrieving records for level: ${lvl_id}`)
     var records = [];
     try {
         records = await getRecordsByLevel(lvl_id);

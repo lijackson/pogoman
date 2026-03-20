@@ -79,7 +79,7 @@ async function getRecordsByLevel(lvl_id) {
     const records = await app.locals.db.collection('scores').find({ level_id: lvl_id });
     const users = await app.locals.db.collection('users').find({}).toArray();
     const client_facing_records = {};
-    records.forEach(dbRecord => {
+    await records.forEach(dbRecord => {
         const user = dbRecord.account_id
             ? users.find(u => u._id.toString() === dbRecord.account_id)
             : null;
@@ -93,14 +93,12 @@ async function getRecordsByLevel(lvl_id) {
 }
 
 async function getRecord(lvl_id, account_id) {
-    const record = await app.locals.db.collection("scores").find({level_id: lvl_id, account_id: account_id});
-    const disambiguated_record = Min(record, r => r.time);
-    const user = await app.locals.db.collection('users').findOne({account_id: account_id});
-    console.log(`successfully got record: ${JSON.stringify(disambiguated_record)}`);
-    if (!disambiguated_record)
+    const record = await app.locals.db.collection("scores").find({level_id: lvl_id, account_id: account_id}).toArray();
+    if (!record || record.length == 0)
         return null;
+    const disambiguated_record = record.length > 0 ? record.reduce((best, current) => current.time < best.time ? current : best) : null;
+    const user = await app.locals.db.collection('users').findOne({account_id: account_id});
     const result = mapDBRecordToClientRecord(disambiguated_record, user);
-    console.log(`converted to client record: ${JSON.stringify(result)}`);
     return await result;
 }
 

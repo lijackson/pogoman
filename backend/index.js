@@ -89,7 +89,7 @@ async function getRecordsByLevel(lvl_id) {
         }
     })
     console.log(`got records for level ${lvl_id}: `, client_facing_records);
-    return Array.from(client_facing_records.values());
+    return Array.from(Object.values(client_facing_records));
 }
 
 async function getRecord(lvl_id, account_id) {

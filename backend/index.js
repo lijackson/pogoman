@@ -76,6 +76,7 @@ async function getRecordsByLevel(lvl_id) {
                     : "Unknown Player"
         }
     });
+    console.log(`got records for level ${lvl_id}: `, client_facing_records);
     return await client_facing_records;
 }
 
@@ -217,9 +218,6 @@ app.post('/api/auth/set-username', async (req, res) => {
     return res.status(200).json({ ok: true });
 });
 
-// app.listen(port, () => {
-//     console.log(`started server on port ${port}`);
-// });
 MongoClient.connect(process.env.POGO_MONGODB_URL, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 })
     .catch(err => console.error(err.stack))
     .then(client => {

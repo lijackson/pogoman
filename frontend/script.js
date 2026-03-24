@@ -399,7 +399,7 @@ var oldlevel5 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,3
 var oldlevel6 = new Level({"name":"old6","player_start":[0,0],"obstacles":[[-50,100,300,30],[400,-200,100,500],[-50,120,100,400],[400,500,400,30],[1100,0,100,500]],"win_blocks":[[1000,0,60,60,"win"]]});
 
 class LevelSelectMenu {
-    static buttons = [
+    static level_buttons = [
         // Levels
         new Button(100, 100, 80, 80, "1", play_lvl_fn(level1)),
         new Button(200, 100, 80, 80, "2", play_lvl_fn(level2)),
@@ -417,52 +417,50 @@ class LevelSelectMenu {
         new Button(400, 200, 80, 80, "o4", play_lvl_fn(oldlevel4)),
         new Button(500, 200, 80, 80, "o5", play_lvl_fn(oldlevel5)),
         new Button(600, 200, 80, 80, "o6", play_lvl_fn(oldlevel6)),
-        
-        // Level editor
-        new Button(100, -100, 600, 80, "Level Editor", function() {
-            StateHandler.state = "lvledit";
-        }),
+    ];
 
-        new Button(720, -100, 200, 80, "set username", async ()=>{
-            if (!UserAuth.currentUser) {
-                window.alert("You must be logged in to set your username.");
-            } else {
-                const new_display_name = window.prompt("Enter your new username:");
-                if (new_display_name) {
-                    const res = await fetch('/api/auth/set-username', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${UserAuth.token}`
-                        },
-                        body: JSON.stringify({ new_display_name })
-                    });
-                    const data = await res.json();
-                    if (data.ok) {
-                        window.alert(`Username updated successfully.`);
-                    } else {
-                        window.alert('Could not update username: ' + (data.message || 'unknown error'));
-                    }
+        // Level editor
+    static level_editor_button = new Button(100, -100, 600, 80, "Level Editor", function() {
+        StateHandler.state = "lvledit";
+    });
+
+    static set_name_button = new Button(-100, 200, 200, 80, "set name", async ()=>{
+        if (!UserAuth.currentUser) {
+            window.alert("You must be logged in to set your username.");
+        } else {
+            const new_display_name = window.prompt("Enter your new username:");
+            if (new_display_name) {
+                const res = await fetch('/api/auth/set-username', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${UserAuth.token}`
+                    },
+                    body: JSON.stringify({ new_display_name })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    window.alert(`Username updated successfully.`);
+                } else {
+                    window.alert('Could not update username: ' + (data.message || 'unknown error'));
                 }
             }
-            InputHandler.click = 0;
-            InputHandler.start_click_coords = null;
-        }),
+        }
+        InputHandler.click = 0;
+        InputHandler.start_click_coords = null;
+    });
 
-        new Button(940, -100, 200, 80, "log in", ()=>{
-            document.getElementById("sign_in_menu").style.visibility = "visible";
-            InputHandler.click = 0;
-            InputHandler.start_click_coords = null;
-        })
-    ];
+    static login_button = new Button(-100, 100, 200, 80, "log in", ()=>{
+        document.getElementById("sign_in_menu").style.visibility = "visible";
+        InputHandler.click = 0;
+        InputHandler.start_click_coords = null;
+    });
 
     static animframe() {
         // TODO: this is super hacky, please fix.
         // The problem is that dynamically changing menu layout is gonna need a lot more
         // consideration of the screen state and how to "position" the buttons dynamically
-
         LevelSelectMenu.draw();
-        
         StateHandler.handle();
     }
 
@@ -476,10 +474,17 @@ class LevelSelectMenu {
         draw_clouds();
 
         // Draw Buttons
-        for (let i = 0; i < LevelSelectMenu.buttons.length; i++) {
-            LevelSelectMenu.buttons[i].exist();
-            LevelSelectMenu.buttons[i].draw();
+        for (let i = 0; i < LevelSelectMenu.level_buttons.length; i++) {
+            LevelSelectMenu.level_buttons[i].exist();
+            LevelSelectMenu.level_buttons[i].draw();
         }
+        LevelSelectMenu.level_editor_button.exist();
+        LevelSelectMenu.level_editor_button.draw();
+        LevelSelectMenu.login_button.exist();
+        LevelSelectMenu.login_button.txt = UserAuth.currentUser?.display_name ?? "log in"; // TODO: maybe modify the exist function to do this
+        LevelSelectMenu.login_button.draw();
+        LevelSelectMenu.set_name_button.exist();
+        LevelSelectMenu.set_name_button.draw();
 
         // User status in main menu
         ctx.fillStyle = "#000";

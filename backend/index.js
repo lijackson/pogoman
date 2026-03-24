@@ -223,12 +223,19 @@ app.get('/api/auth/me', (req, res) => {
 });
 
 app.post('/api/auth/set-username', async (req, res) => {
-    if (!req.user) return res.status(401).json({ ok: false, message: 'Not authenticated' });
-    const { new_display_name } = req.body;
-    if (!new_display_name) return res.status(400).json({ ok: false, message: 'new_display_name required' });
-    const updateResult = await app.locals.db.collection('users').updateOne({ google_sub: req.user.google_sub }, { $set: { display_name: new_display_name } });
+    if (!req.user)
+        return res.status(401).json({ ok: false, message: 'Not authenticated' });
 
-    // attach existing records with the old username to this account_id for legacy support (can be removed in the future when we switch fully to account_id based lookups)
+    const { new_display_name } = req.body;
+    if (!new_display_name)
+        return res.status(400).json({ ok: false, message: 'new_display_name required' });
+
+    const existing_user = await app.locals.db.collection('users').findOne({ display_name: new_display_name });
+    if (existing_user)
+        return res.status(400).json({ ok: false, message: 'Username already taken' });
+
+    const updateResult = await app.locals.db.collection('users').updateOne({ google_sub: req.user.google_sub }, { $set: { display_name: new_display_name } });
+    // attach existing records with the old username to this account_id for legacy support
     const attachResult = await attachUsername(req.user.display_name, req.user._id.toString());
     
     return res.status(200).json({ ok: true });

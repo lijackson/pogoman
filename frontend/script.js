@@ -389,6 +389,7 @@ var level5 = new Level(level5json);
 var level6 = new Level(level6json);
 var level7 = new Level(level7json);
 var level8 = new Level(level8json);
+var level9 = new Level(level9json);
 
 // These are the old levels, they will be removed at some point
 var oldlevel1 = new Level({"player_start":[360,240],"obstacles":[[200,300,1000,30],[500,250,50,50],[800,230,50,70],[1100,210,50,90]],"win_blocks":[[1200,300,200,30]]});
@@ -409,6 +410,7 @@ class LevelSelectMenu {
         new Button(600, 100, 80, 80, "6", play_lvl_fn(level6)),
         new Button(700, 100, 80, 80, "7", play_lvl_fn(level7)),
         new Button(800, 100, 80, 80, "8", play_lvl_fn(level8)),
+        new Button(900, 100, 80, 80, "9", play_lvl_fn(level9)),
 
         // Old levels
         new Button(100, 200, 80, 80, "o1", play_lvl_fn(oldlevel1)),

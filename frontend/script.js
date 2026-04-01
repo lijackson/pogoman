@@ -263,7 +263,7 @@ class Level {
         this.player_start = [x, y];
     }
 
-    json() {
+    lvl_json() {
         var obstacles = [];
         var win_blocks = [];
         for (let id in this.obstacles) {
@@ -639,7 +639,7 @@ class DBHandler {
                 replay: Game.replay
             })
         });
-        console.log(`finished posting new time, got result: ${res.status}`);
+        console.log(`finished posting new time`);
         await DBHandler.update_leaderboard(lvl_id);
     }
 }
@@ -849,7 +849,7 @@ class LevelEditor {
     }
 
     static reset() {
-        LevelEditor.level.json();
+        LevelEditor.level.lvl_json();
         LevelEditor.level = new Level({"player_start": [0, 0]});
         LevelEditor.pogo_dude.move_to(0, 0);
         LevelEditor.on_open();
@@ -1040,7 +1040,7 @@ class PauseScreen {
 
         if (StateHandler.state == "win" && DBHandler.logged_in_username != null) {
             if (StateHandler.just_changed_state) {
-                console.log(`posting new time: ${Game.phystime} on level: ${Game.level.name}`);
+                console.log(`posting new time [${Game.clock}ms] on level [${Game.level.name}]`);
                 Leaderboard.level = Game.level.name;
                 DBHandler.post_to_leaderboard(Leaderboard.level, Game.clock)
                 DBHandler.update_leaderboard(Leaderboard.level);

@@ -492,7 +492,7 @@ class LevelSelectMenu {
         ctx.fillStyle = "#000";
         ctx.font = "24px Courier New";
         let statusText = "Not signed in";
-        if (UserAuth.currentUser) statusText = `Signed in: ${UserAuth.currentUser.display_name}`;
+        if (UserAuth.currentUser) statusText = "";
         ctx.fillText(statusText, 100, 350);
     }
 }
@@ -578,7 +578,7 @@ class UserAuth {
         const signOutBtn = document.getElementById('sign_out_btn');
         if (!status || !signOutBtn) return;
         if (UserAuth.currentUser) {
-            status.textContent = `Signed in as ${UserAuth.currentUser.display_name}`;
+            status.textContent = "";
             signOutBtn.style.display = 'block';
         } else {
             status.textContent = 'Not signed in';
